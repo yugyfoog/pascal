@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
   input = fopen(input_name, "r");
   if (input == 0)
     fatal_error("unable to open %s", input_name);
+  initialize_symbols();
   prog = parse();
   fclose(input);
   if (error_count == 0) {

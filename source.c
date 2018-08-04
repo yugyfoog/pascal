@@ -48,6 +48,20 @@ int peek_char(void);
 int next_char(void);
 void back_char(int);
 
+bool match(Token_Type t) {
+  if (token_type != t)
+    return false;
+  next_token();
+  return true;
+}
+
+void need(Token_Type t) {
+  if (token_type == t)
+    next_token();
+  else
+    error("missing %s near %s", token_name[t], token);
+}   
+
 void next_token() {
   int c;
 
