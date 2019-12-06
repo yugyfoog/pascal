@@ -48,6 +48,10 @@ int peek_char(void);
 int next_char(void);
 void back_char(int);
 
+bool check(Token_Type tt) {
+  return token_type == tt;
+}
+
 bool match(Token_Type t) {
   if (token_type != t)
     return false;

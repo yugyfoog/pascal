@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "pascal.h"
 
-Statement *statement_part() {
+void compound_statement() {
   XXX();
-  return 0;
 }

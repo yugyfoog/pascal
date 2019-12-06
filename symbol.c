@@ -102,7 +102,7 @@ void pop_symbol_table() {
   }
 }
 
-Symbol *new_program_symbol(char *name, Symbol_List *params) {
+Symbol *new_program_symbol(char *name, Identifier_List *params) {
   Symbol *prog = new(Symbol);
   
   prog->class = PROGRAM_SYMBOL;

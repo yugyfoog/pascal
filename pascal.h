@@ -25,11 +25,6 @@ typedef enum {
   END_OF_FILE_TOKEN
 } Token_Type;
 
-typedef struct Id_List {
-  char *id;
-  struct Id_List *next;
-} Id_List;
-
 typedef enum {
   DISPOSE_PROCEDURE, GET_PROCEDURE, NEW_PROCEDURE, PACK_PROCEDURE,
   PAGE_PROCEDURE, PUT_PROCEDURE, READ_PROCEDURE, READLN_PROCEDURE,
@@ -98,7 +93,7 @@ typedef struct Block {
 } Block;
 
 typedef struct Program_Symbol {
-  struct Symbol_List *params;
+  struct Identifier_List *params;
   Block *block;
 } Program_Symbol;
 
@@ -133,6 +128,11 @@ typedef struct Symbol_List {
   struct Symbol_List *next;
 } Symbol_List;
 
+typedef struct Identifier_List {
+  char *id;
+  struct Identifier_List *next;
+} Identifier_List;
+
 /* main.c */
 
 extern char *program_name;
@@ -146,11 +146,12 @@ extern FILE *output;
 extern Type *text_type;
 
 void initialize_symbols(void);
-Symbol *new_program_symbol(char *, Symbol_List *);
+Symbol *new_program_symbol(char *, Identifier_List *);
 Symbol *new_val_param_symbol(char *, Type *);
 void push_symbol_table(void);
 void pop_symbol_table(void);
-void insert_parameters(Symbol_List *);
+
+void insert(Symbol *);
 
 /* source.c */
 
@@ -158,12 +159,15 @@ extern int line_number;
 extern Token_Type token_type;
 extern char *token;
 
+bool check(Token_Type);
 bool match(Token_Type);
 void need(Token_Type);
 void next_token(void);
 
 /* semantics.c */
 
+
+Symbol *new_constant_symbol(char *, Constant *);
 Constant *new_ordinal_constant(Type *, Ordinal);
 Type *new_ordinal_type(Type *, Ordinal, Ordinal);
 
@@ -175,7 +179,11 @@ Symbol *parse(void);
 
 /* stmts.c */
 
-Statement *statement_part(void);
+void compound_statement(void);
+
+/* expr.c */
+
+Constant *constant(void);
 
 /* code.c */
 

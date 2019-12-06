@@ -9,19 +9,24 @@ Symbol *program(void);
 Symbol *program_heading(void);
 Symbol_List *program_parameter_list(void);
 void program_block(Symbol *);
+void procedure(void);
+void function(void);
 Block *block(void);
-void label_declaration_part(void);
-void constant_definition_part(void);
-void type_definition_part(void);
-Symbol_List *variable_declaration_part(void);
+void label_declarations(void);
+void label(void);
+void constant_definitions(void);
+void constant_definition(void);
+void type_definitions(void);
+Symbol_List *variable_declarations(void);
 Symbol_List *procedure_and_function_declaration_part(void);
-Id_List *identifier_list(void);
+Identifier_List *identifier_list(void);
 char *identifier(void);
 
 Symbol *parse() {
   Symbol *prog;
   
   next_token();
+  need(PROGRAM_TOKEN);
   prog = program();
   if (token_type != END_OF_FILE_TOKEN)
     warning("text following end of program ignored");
@@ -40,12 +45,11 @@ Symbol *program() {
 
 Symbol *program_heading() {
   char *name;
-  Symbol_List *params;
+  Identifier_List *params;
   
-  need(PROGRAM_TOKEN);
   name = identifier();
   if (match(LPAREN_TOKEN)) {
-    params = program_parameter_list();
+    params = identifier_list();
     need(RPAREN_TOKEN);
   }
   else
@@ -53,62 +57,75 @@ Symbol *program_heading() {
   return new_program_symbol(name, params);
 }
 
-Symbol_List *program_parameter_list() {
-  Symbol_List *syms;
-  char *id;
-  
-  id = identifier();
-  if (strcmp(id, "input") == 0
-      || strcmp(id, "output") == 0
-      || strcmp(id, "error") == 0) {
-    syms = new(Symbol_List);
-    syms->sym = new_val_param_symbol(id, text_type);
-    if (match(COMMA_TOKEN))
-      syms->next = program_parameter_list();
-    else
-      syms->next = 0;
-    return syms;
-  }
-  warning("program parameter %s ignored", id);
-  if (match(COMMA_TOKEN))
-    return program_parameter_list();
-  return 0;
+void procedure() {
+  XXX();
+}
+
+void function() {
+  XXX();
 }
 
 void program_block(Symbol *prog) {
   lexical_level++;
   push_symbol_table();
-  insert_parameters(prog->prog.params);
   prog->prog.block = block();
   pop_symbol_table();
   lexical_level--;
 }
 
 Block *block() {
-  Block *blck = new(Block);
-  
-  label_declaration_part();
-  constant_definition_part();
-  type_definition_part();
-  blck->variables = variable_declaration_part();
-  blck->procfuncs = procedure_and_function_declaration_part();
-  blck->stmt = statement_part();
-  return blck;
+  if (match(LABEL_TOKEN))
+    label_declarations();
+  if (match(CONST_TOKEN))
+    constant_definitions();
+  if (match(TYPE_TOKEN))
+    type_definitions();
+  if (match(VAR_TOKEN))
+    variable_declarations();
+  for (;;) {
+    if (match(PROCEDURE_TOKEN))
+      procedure();
+    else if (match(FUNCTION_TOKEN))
+      function();
+    else
+      break;
+  }
+  compound_statement();
+  return 0;
 }
 
-void label_declaration_part() {
+void label_declarations() {
+  do
+    label();
+  while (match(COMMA_TOKEN));
+  need(SEMICOLON_TOKEN);
+}
+
+void label() {
+  need(INTEGER_TOKEN);
+}
+
+void constant_definitions() {
+  while (check(IDENTIFIER_TOKEN))
+    constant_definition();
+}
+
+void constant_definition() {
+  Constant *cnst;
+  char *name;
+
+  name = identifier();
+  need(EQ_TOKEN);
+  cnst = constant();
+  need(SEMICOLON_TOKEN);
+  insert(new_constant_symbol(name, cnst));
+}
+
+void type_definitions() {
   XXX();
 }
 
-void constant_definition_part() {
-  XXX();
-}
-
-void type_definition_part() {
-  XXX();
-}
-
-Symbol_List *variable_declaration_part() {
+Symbol_List *variable_declarations() {
   XXX();
   return 0;
 }
@@ -118,8 +135,8 @@ Symbol_List *procedure_and_function_declaration_part() {
   return 0;
 }
 
-Id_List *identifier_list() {
-  Id_List *ids = new(Id_List);
+Identifier_List *identifier_list() {
+  Identifier_List *ids = new(Identifier_List);
 
   ids->id = identifier();
   if (match(COMMA_TOKEN))
