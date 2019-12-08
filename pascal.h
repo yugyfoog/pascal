@@ -46,30 +46,65 @@ typedef struct Ordinal_Type {
   Ordinal high;
 } Ordinal_Type;
 
+typedef struct Array_Type {
+  struct Type *index;
+  struct Type *component;
+} Array_Type;
+
+typedef struct Variant {
+  struct Constant_List *cnsts;
+  struct Type *fields;
+} Variant;
+
+typedef struct Variant_List {
+  Variant *variant;
+  struct Variant_List *next;
+} Variant_List;
+
+typedef struct Variant_Part {
+  struct Symbol *selector;
+  Variant_List *variants;
+} Variant_Part;
+
+typedef struct Record_Type {
+  struct Symbol_List *fixed;
+  Variant_Part *variant;
+} Record_Type;
+
+typedef enum {
+  ORDINAL_TYPE, REAL_TYPE,
+  ARRAY_TYPE, PACKED_ARRAY_TYPE,
+  RECORD_TYPE, PACKED_RECORD_TYPE,
+  SET_TYPE, PACKED_SET_TYPE,
+  FILE_TYPE, PACKED_FILE_TYPE,
+  POINTER_TYPE, TEXT_TYPE,
+  NIL_TYPE, FORWARD_TYPE
+} Type_Class;
+
 typedef struct Type {
-  enum {
-    ORDINAL_TYPE, REAL_TYPE,
-    ARRAY_TYPE, PACKED_ARRAY_TYPE,
-    RECORD_TYPE, PACKED_RECOD_TYPE,
-    SET_TYPE, PACKED_SET_TYPE,
-    FILE_TYPE, PACKED_FILE_TYPE,
-    POINTER_TYPE, TEXT_TYPE,
-    NIL_TYPE
-  } class;
+  Type_Class class;
   union {
     Ordinal_Type ordinal;
+    Array_Type array;
+    Record_Type record;
+    struct Type *subtype; /* used for set, file and pointer types */
   };
 } Type;
 
 typedef struct Constant {
   struct Type *type;
   union {
-    Ordinal i;
-    Real r;
-    char *s;
+    Ordinal ordinal;
+    Real real;
+    char *string;
   };
 } Constant;
 
+typedef struct Constant_List {
+  Constant *constant;
+  struct Constant_List *next;
+} Constant_List;
+  
 typedef struct Statement {
   enum {
     EMPTY_STATEMENT, COMPOUND_STATEMENT,
@@ -102,15 +137,17 @@ typedef struct Variable_Symbol {
   Type *type;
 } Variable_Symbol;
 
+typedef enum {
+  PROGRAM_SYMBOL, PROCEDURE_SYMBOL, FUNCTION_SYMBOL,
+  LABEL_SYMBOL, CONSTANT_SYMBOL, TYPE_SYMBOL,
+  VARIABLE_SYMBOL, VARARG_SYMBOL, VALARG_SYMBOL,
+  PROCARG_SYMBOL, FUNCARG_SYMBOL,
+  STDPROC_SYMBOL, STDFUNC_SYMBOL,
+  FIELD_SYMBOL,
+} Symbol_Class;
+
 typedef struct Symbol {
-  enum {
-    PROGRAM_SYMBOL, PROCEDURE_SYMBOL, FUNCTION_SYMBOL,
-    LABEL_SYMBOL, CONSTANT_SYMBOL, TYPE_SYMBOL,
-    VARIABE_SYMBOL, VARARG_SYMBOL, VALARG_SYMBOL,
-    PROCARG_SYMBOL, FUNCARG_SYMBOL,
-    STDPROC_SYMBOL, STDFUNC_SYMBOL,
-    VARIANT_SELECTOR_SYMBOL
-  } class;
+  Symbol_Class class;
   char *name;
   union {
     Program_Symbol prog;
@@ -143,7 +180,11 @@ extern FILE *output;
 
 /* symbol.c */
 
+extern Type *char_type;
+extern Type *integer_type;
+extern Type *real_type;
 extern Type *text_type;
+extern Type *forward_type;
 
 void initialize_symbols(void);
 Symbol *new_program_symbol(char *, Identifier_List *);
@@ -152,6 +193,7 @@ void push_symbol_table(void);
 void pop_symbol_table(void);
 
 void insert(Symbol *);
+Symbol *lookup(char *);
 
 /* source.c */
 
@@ -168,14 +210,30 @@ void next_token(void);
 
 
 Symbol *new_constant_symbol(char *, Constant *);
+Symbol *new_type_symbol(char *, Type *);
+Symbol *new_field_symbol(char *, Type *);
+Symbol *new_variable_symbol(char *, Type *);
+
 Constant *new_ordinal_constant(Type *, Ordinal);
+Constant *new_real_constant(Real);
+
+Type *new_type(Type_Class);
+Type *new_subrange_type(Constant *, Constant *);
 Type *new_ordinal_type(Type *, Ordinal, Ordinal);
+Type *new_enumerated_type(Identifier_List *);
+Type *make_string_type(char *);
+Type *new_array_type(Type *, Type *);
+Type *make_packed(Type *);
+Type *new_set_type(Type *);
+Type *new_file_type(Type *);
+Type *new_pointer_type(Type *);
 
 /* parse.c */
 
 extern int lexical_level;
 
 Symbol *parse(void);
+char *identifier(void);
 
 /* stmts.c */
 
@@ -183,6 +241,7 @@ void compound_statement(void);
 
 /* expr.c */
 
+Constant_List *constant_list(void);
 Constant *constant(void);
 
 /* code.c */

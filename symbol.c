@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pascal.h"
 
 #define HASH_SIZE 1021
@@ -14,6 +15,7 @@ Type *char_type;
 Type *integer_type;
 Type *real_type;
 Type *text_type;
+Type *forward_type;
 
 Constant *nil_constant;
 
@@ -26,11 +28,8 @@ Symbol *new_standard_procedure(char *, Standard_Procedure);
 Symbol *new_standard_function(char *, Standard_Function);
 
 void initialize_symbols() {
-  nil_type = new(Type);
-  nil_type->class = NIL_TYPE;
-  nil_constant = new(Constant);
-  nil_constant->type = nil_type;
-  nil_constant->i = 0;
+  forward_type = new_type(FORWARD_TYPE);
+  nil_type = new_type(NIL_TYPE);
 
   boolean_type = new_ordinal_type(0, 0, 1);
   insert(new_type_symbol("boolean", boolean_type));
@@ -170,11 +169,24 @@ void insert(Symbol *sym) {
   symbol_table[h] = sptr;
 }
 
+Symbol *lookup(char *id) {
+  Symbol_List *syms;
+  unsigned h;
+
+  h = hash(id);
+  for (syms = symbol_table[h]; syms; syms = syms->next)
+    if (strcmp(syms->sym->name, id) == 0)
+      return syms->sym;
+  return 0;
+}
+
 unsigned hash(char *s) {
   unsigned h = 0;
 
-  while (*s)
-    h = (h<<1)^(h>>1)^*s++;
+  for (; *s; s++) {
+    h = (h<<4) + *s;
+    h = 0xffffff&(h^(h>>24));
+  }
   return h%HASH_SIZE;
 }
 
