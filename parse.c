@@ -10,7 +10,15 @@ Symbol *program_heading(void);
 Symbol_List *program_parameter_list(void);
 void program_block(Symbol *);
 void procedure(void);
+void procedure_heading(void);
+void directive(void);
+void procedure_block(void);
 void function(void);
+void formal_parameter_list(void);
+void value_parameter_specification(void);
+void variable_parameter_specification(void);
+void procedural_parameter_specification(void);
+void functional_parameter_specification(void);
 Block *block(void);
 void label_declarations(void);
 void label(void);
@@ -79,20 +87,76 @@ Symbol *program_heading() {
   return new_program_symbol(name, params);
 }
 
-void procedure() {
-  XXX();
-}
-
-void function() {
-  XXX();
-}
-
 void program_block(Symbol *prog) {
   lexical_level++;
   push_symbol_table();
   prog->prog.block = block();
   pop_symbol_table();
   lexical_level--;
+}
+
+void procedure() {
+  procedure_heading();
+  need(SEMICOLON_TOKEN);
+  if (check(IDENTIFIER_TOKEN))
+    directive();
+  else
+    procedure_block();
+}
+
+void procedure_heading() {
+  identifier();
+  if (match(LPAREN_TOKEN)) {
+    formal_parameter_list();
+    need(RPAREN_TOKEN);
+  }
+}
+
+void procedure_block() {
+  lexical_level++;
+  push_symbol_table();
+  block();
+  pop_symbol_table();
+  lexical_level--;
+}
+
+void function() {
+  XXX();
+}
+
+void directive() {
+  identifier();
+}
+
+void formal_parameter_list() {
+  do {
+    if (match(PROCEDURE_TOKEN))
+      procedural_parameter_specification();
+    else if (match(FUNCTION_TOKEN))
+      functional_parameter_specification();
+    else if (match(VAR_TOKEN))
+      variable_parameter_specification();
+    else
+      value_parameter_specification();
+  } while (match(SEMICOLON_TOKEN));
+}
+
+void value_parameter_specification() {
+  identifier_list();
+  need(COLON_TOKEN);
+  identifier();
+}
+
+void variable_parameter_specification() {
+  XXX();
+}
+
+void procedural_parameter_specification() {
+  XXX();
+}
+
+void functional_parameter_specification() {
+  XXX();
 }
 
 Block *block() {
