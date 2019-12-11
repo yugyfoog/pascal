@@ -20,7 +20,7 @@ typedef enum {
   EQ_TOKEN, NE_TOKEN, LT_TOKEN, LE_TOKEN, GT_TOKEN, GE_TOKEN,
   LPAREN_TOKEN, RPAREN_TOKEN, LBRACK_TOKEN, RBRACK_TOKEN,
   ASSIGN_TOKEN, ELLIPSIS_TOKEN, ARROW_TOKEN,
-  INTEGER_TOKEN, REAL_TOKEN, STRING_TOKEN,
+  INTEGER_TOKEN, REAL_TOKEN, CHAR_TOKEN, STRING_TOKEN,
   IDENTIFIER_TOKEN,
   END_OF_FILE_TOKEN
 } Token_Type;
@@ -243,6 +243,7 @@ void compound_statement(void);
 
 Constant_List *constant_list(void);
 Constant *constant(void);
+void expression(void);
 
 /* code.c */
 

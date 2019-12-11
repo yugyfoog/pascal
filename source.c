@@ -30,7 +30,8 @@ char *token_name[] = {
   "=", "<>", "<", "<=", ">", ">=",
   "(", ")", "[", "]",
   ":=", "..", "^",
-  "integer constant", "real constant", "string constant",
+  "integer constant", "real constant",
+  "character constant", "string constant",
   "identifier", "end of file"
 };
 
@@ -229,16 +230,20 @@ void string_symbol() {
 	token_add(c);
       else {
 	back_char(c);
-	return;
+	break;
       }
     }
     else if (c == '\n' || c == EOF) {
       error("missing quote");
       token_add('\'');
       back_char(c);
-      return;
+      break;
     }
   }
+  if (strlen(token) == 3 || strcmp(token, "''''") == 0)
+    token_type = CHAR_TOKEN;
+  else
+    token_type = STRING_TOKEN;
 }
 
 void character_symbol() {

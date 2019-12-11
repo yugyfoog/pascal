@@ -43,6 +43,5 @@ void fatal_error(char *fmt, ...) {
 }
 
 void x_undefined(char *file, char const *func, int line) {
-  printf("%s() undefined at line %d and file %s\n", func, line, file);
-  exit(1);
+  fatal_error("%s() undefined at line %d and file %s", func, line, file);
 }

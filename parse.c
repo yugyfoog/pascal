@@ -247,7 +247,7 @@ Type *type() {
   case LPAREN_TOKEN:
     return enumerated_type();
   case INTEGER_TOKEN:
-  case STRING_TOKEN:
+  case CHAR_TOKEN:
   case PLUS_TOKEN:
   case MINUS_TOKEN:
     return subrange_type();
