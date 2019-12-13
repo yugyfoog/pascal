@@ -50,8 +50,6 @@ void statement() {
   switch (token_type) {
   case END_TOKEN:
   case SEMICOLON_TOKEN:
-    /* empty statement */
-    next_token();
     break;
   case IDENTIFIER_TOKEN:
     sym = lookup(token);
@@ -107,7 +105,9 @@ void statement() {
 }
 
 void assignment_statement() {
-  XXX();
+  variable_access();
+  need(ASSIGN_TOKEN);
+  expression();
 }
 
 void procedure_statement() {

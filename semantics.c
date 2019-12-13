@@ -127,8 +127,42 @@ Symbol *new_symbol(char *id, Symbol_Class class) {
   return sym;
 }
 
+Symbol *new_procedure_symbol(char *id, Symbol_List *args) {
+  Symbol *sym = new(Symbol);
+
+  sym->class = PROCEDURE_SYMBOL;
+  sym->name = id;
+  sym->proc.params = args;
+  sym->proc.block = 0;
+  sym->proc.state = DEFINED;
+  return sym;
+}
+
+Symbol *new_function_symbol(char *id, Symbol_List *args, Type *t) {
+  Symbol *sym = new(Symbol);
+
+  sym->class = FUNCTION_SYMBOL;
+  sym->name = id;
+  sym->func.params = args;
+  sym->func.block = 0;
+  sym->func.state = DEFINED;
+  sym->func.type = t;
+  return sym;
+}
+
+Symbol *new_parameter_symbol(char *id, Type *type, Symbol_Class class) {
+  Symbol *sym = new(Symbol);
+  sym->class = class;
+  sym->name = id;
+  sym->var.level = lexical_level;
+  sym->var.type = type;
+  return sym;
+}
+
+  
 Symbol *new_field_symbol(char *id, Type *t) {
   Symbol *sym = new_symbol(id, FIELD_SYMBOL);
+  sym->name = id;
   sym->type = t;
   return sym;
 }

@@ -9,7 +9,6 @@ void factor(void);
 void set_constructor(void);
 void function_designator(void);
 void standard_function(void);
-void variable_access(void);
 Constant *unsigned_constant(void);
 Constant *integer_constant(void);
 Constant *real_constant(void);
@@ -131,7 +130,21 @@ void set_constructor() {
 }
 
 void variable_access() {
-  XXX();
+  identifier();
+  for (;;) {
+    if (match(LBRACK_TOKEN)) {
+      do
+	expression();
+      while (match(COMMA_TOKEN));
+      need(RBRACK_TOKEN);
+    }
+    else if (match(PERIOD_TOKEN))
+      identifier();
+    else if (match(ARROW_TOKEN))
+      ;
+    else
+      break;
+  }
 }
 
 void function_designator() {

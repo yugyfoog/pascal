@@ -45,3 +45,7 @@ void fatal_error(char *fmt, ...) {
 void x_undefined(char *file, char const *func, int line) {
   fatal_error("%s() undefined at line %d and file %s", func, line, file);
 }
+
+void x_internal_error(char *file, char const *func, int line) {
+  fatal_error("internal error in %s() at line %d in file %s", func, line, file);
+}

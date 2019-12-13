@@ -1,6 +1,7 @@
 #include "machine.h"
 
 #define XXX() x_undefined(__FILE__,__FUNCTION__,__LINE__)
+#define internal_error() x_internal_error(__FILE__,__FUNCTION__,__LINE__)
 
 #define MAX_ERRORS 5
 
@@ -132,6 +133,21 @@ typedef struct Program_Symbol {
   Block *block;
 } Program_Symbol;
 
+typedef enum {DEFINED, FORWARD, EXTERNAL} State;
+
+typedef struct Procedure_Symbol {
+  State state;
+  struct Symbol_List *params;
+  Block *block;
+} Procedure_Symbol;
+
+typedef struct Function_Symbol {
+  State state;
+  struct Symbol_List *params;
+  Type *type;
+  Block *block;
+} Function_Symbol;
+
 typedef struct Variable_Symbol {
   int level;
   Type *type;
@@ -151,6 +167,8 @@ typedef struct Symbol {
   char *name;
   union {
     Program_Symbol prog;
+    Procedure_Symbol proc;
+    Function_Symbol func;
     struct Constant *cnst;
     struct Type *type;
     Variable_Symbol var;
@@ -194,6 +212,7 @@ void pop_symbol_table(void);
 
 void insert(Symbol *);
 Symbol *lookup(char *);
+void add_parameters(Symbol_List *);
 
 /* source.c */
 
@@ -208,7 +227,9 @@ void next_token(void);
 
 /* semantics.c */
 
-
+Symbol *new_procedure_symbol(char *, Symbol_List *);
+Symbol *new_function_symbol(char *, Symbol_List *, Type *);
+Symbol *new_parameter_symbol(char *, Type *,  Symbol_Class);
 Symbol *new_constant_symbol(char *, Constant *);
 Symbol *new_type_symbol(char *, Type *);
 Symbol *new_field_symbol(char *, Type *);
@@ -244,6 +265,7 @@ void compound_statement(void);
 Constant_List *constant_list(void);
 Constant *constant(void);
 void expression(void);
+void variable_access(void);
 
 /* code.c */
 
@@ -257,3 +279,4 @@ void warning(char *, ...);
 void error(char *, ...);
 void fatal_error(char *, ...);
 void x_undefined(char *, char const *, int);
+void x_internal_error(char *, char const *, int);

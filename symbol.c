@@ -180,6 +180,13 @@ Symbol *lookup(char *id) {
   return 0;
 }
 
+void add_parameters(Symbol_List *syms) {
+  while (syms) {
+    insert(syms->sym);
+    syms = syms->next;
+  }
+}
+
 unsigned hash(char *s) {
   unsigned h = 0;
 

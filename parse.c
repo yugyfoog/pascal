@@ -10,15 +10,16 @@ Symbol *program_heading(void);
 Symbol_List *program_parameter_list(void);
 void program_block(Symbol *);
 void procedure(void);
-void procedure_heading(void);
-void directive(void);
-void procedure_block(void);
+Symbol *procedure_heading(void);
+void directive(Symbol *);
+void procedure_block(Symbol *);
 void function(void);
-void formal_parameter_list(void);
-void value_parameter_specification(void);
-void variable_parameter_specification(void);
-void procedural_parameter_specification(void);
-void functional_parameter_specification(void);
+Symbol *function_heading(void);
+void function_block(Symbol *);
+Symbol_List *formal_parameter_list(void);
+Symbol_List *parameters(Symbol_Class);
+Symbol_List *procedural_parameter_specification(void);
+Symbol_List *functional_parameter_specification(void);
 Block *block(void);
 void label_declarations(void);
 void label(void);
@@ -96,67 +97,135 @@ void program_block(Symbol *prog) {
 }
 
 void procedure() {
-  procedure_heading();
+  Symbol *proc = procedure_heading();
+  
   need(SEMICOLON_TOKEN);
   if (check(IDENTIFIER_TOKEN))
-    directive();
+    directive(proc);
   else
-    procedure_block();
+    procedure_block(proc);
+  need(SEMICOLON_TOKEN);
 }
 
-void procedure_heading() {
-  identifier();
+Symbol *procedure_heading() {
+  Symbol_List *args;
+  char *id;
+  
+  id = identifier();
   if (match(LPAREN_TOKEN)) {
-    formal_parameter_list();
+    args = formal_parameter_list();
     need(RPAREN_TOKEN);
   }
+  return new_procedure_symbol(id, args);
 }
 
-void procedure_block() {
+void procedure_block(Symbol *proc) {
   lexical_level++;
   push_symbol_table();
+  add_parameters(proc->proc.params);
   block();
   pop_symbol_table();
   lexical_level--;
 }
 
 void function() {
-  XXX();
+  Symbol *func = function_heading();
+  need(SEMICOLON_TOKEN);
+  if (check(IDENTIFIER_TOKEN))
+    directive(func);
+  else
+    function_block(func);
+  need(SEMICOLON_TOKEN);
 }
 
-void directive() {
-  identifier();
+void function_block(Symbol *func) {
+  lexical_level++;
+  push_symbol_table();
+  add_parameters(func->func.params);
+  block();
+  pop_symbol_table();
+  lexical_level--;
 }
 
-void formal_parameter_list() {
-  do {
-    if (match(PROCEDURE_TOKEN))
-      procedural_parameter_specification();
-    else if (match(FUNCTION_TOKEN))
-      functional_parameter_specification();
-    else if (match(VAR_TOKEN))
-      variable_parameter_specification();
-    else
-      value_parameter_specification();
-  } while (match(SEMICOLON_TOKEN));
-}
+Symbol *function_heading() {
+  Symbol_List *args;
+  Symbol *sym;
+  Type *t;
+  char *id;
 
-void value_parameter_specification() {
-  identifier_list();
+  id = identifier();
+  sym = lookup(id); /* check for forward declaration */
+  if (sym && sym->class == FUNCTION_SYMBOL && sym->func.state == FORWARD)
+    return sym;
+  if (match(LPAREN_TOKEN)) {
+    args = formal_parameter_list();
+    need(RPAREN_TOKEN);
+  }
   need(COLON_TOKEN);
-  identifier();
+  t = type_identifier(identifier());
+  return new_function_symbol(id, args, t);
 }
 
-void variable_parameter_specification() {
-  XXX();
+void directive(Symbol *sym) {
+  if (strcmp(token, "forward") == 0) {
+    if (sym->class == PROCEDURE_SYMBOL)
+      sym->proc.state = FORWARD;
+    else if (sym->class == FUNCTION_SYMBOL)
+      sym->func.state = FORWARD;
+    else
+      internal_error();
+  }
+  else if (strcmp(token, "external") == 0) {
+    if (sym->class == PROCEDURE_SYMBOL)
+      sym->proc.state = EXTERNAL;
+    else if (sym->class == FUNCTION_SYMBOL)
+      sym->func.state = EXTERNAL;
+    else
+      internal_error();
+  }
+  next_token();
 }
 
-void procedural_parameter_specification() {
-  XXX();
+Symbol_List *formal_parameter_list() {
+  if (match(PROCEDURE_TOKEN))
+    return procedural_parameter_specification();
+  if (match(FUNCTION_TOKEN))
+    return functional_parameter_specification();
+  if (match(VAR_TOKEN))
+    return parameters(VARARG_SYMBOL);
+  return parameters(VALARG_SYMBOL);
 }
 
-void functional_parameter_specification() {
+Symbol_List *parameters(Symbol_Class class) {
+  Symbol_List *syms = new(Symbol_List);
+  char *id, *tid;
+
+  id = identifier();
+  if (match(COMMA_TOKEN)) {
+    syms->next = parameters(class);
+    syms->sym = new_parameter_symbol(id, syms->next->sym->type, class);
+  }
+  else if (match(COLON_TOKEN)) {
+    tid = identifier();
+    syms->sym = new_parameter_symbol(id, type_identifier(tid), class);
+    if (match(SEMICOLON_TOKEN))
+      syms->next = formal_parameter_list();
+    else
+      syms->next = 0;
+  }
+  else
+    error("syntax error in formal parameters near %s", token);
+  return syms;
+}
+      
+Symbol_List *procedural_parameter_specification() {
   XXX();
+  return 0;
+}
+
+Symbol_List *functional_parameter_specification() {
+  XXX();
+  return 0;
 }
 
 Block *block() {
