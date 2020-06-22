@@ -19,7 +19,9 @@ void function_block(Symbol *);
 Symbol_List *formal_parameter_list(void);
 Symbol_List *parameters(Symbol_Class);
 Symbol_List *procedural_parameter_specification(void);
+Symbol *procedure_parameter(void);
 Symbol_List *functional_parameter_specification(void);
+Symbol *function_parameter(void);
 Block *block(void);
 void label_declarations(void);
 void label(void);
@@ -108,15 +110,27 @@ void procedure() {
 }
 
 Symbol *procedure_heading() {
-  Symbol_List *args;
+  Symbol_List *args = 0;
+  Symbol *sym;
   char *id;
   
   id = identifier();
+
+  /* check for forward declaration */
+
+  sym = lookup(id);
+  if (sym && sym->class == PROCEDURE_SYMBOL && sym->func.state == FORWARD)
+    return sym;
+
+  /* not declared */
+  
   if (match(LPAREN_TOKEN)) {
     args = formal_parameter_list();
     need(RPAREN_TOKEN);
   }
-  return new_procedure_symbol(id, args);
+  sym = new_procedure_symbol(id, args);
+  insert(sym);
+  return sym;
 }
 
 void procedure_block(Symbol *proc) {
@@ -148,22 +162,30 @@ void function_block(Symbol *func) {
 }
 
 Symbol *function_heading() {
-  Symbol_List *args;
+  Symbol_List *args = 0;
   Symbol *sym;
   Type *t;
   char *id;
 
   id = identifier();
-  sym = lookup(id); /* check for forward declaration */
+  
+  /* check for forward declaration */
+  
+  sym = lookup(id); 
   if (sym && sym->class == FUNCTION_SYMBOL && sym->func.state == FORWARD)
     return sym;
+
+  /* not declared */
+  
   if (match(LPAREN_TOKEN)) {
     args = formal_parameter_list();
     need(RPAREN_TOKEN);
   }
   need(COLON_TOKEN);
   t = type_identifier(identifier());
-  return new_function_symbol(id, args, t);
+  sym = new_function_symbol(id, args, t);
+  insert(sym);
+  return sym;
 }
 
 void directive(Symbol *sym) {
@@ -217,26 +239,68 @@ Symbol_List *parameters(Symbol_Class class) {
     error("syntax error in formal parameters near %s", token);
   return syms;
 }
-      
+
 Symbol_List *procedural_parameter_specification() {
-  XXX();
-  return 0;
+  Symbol_List *syms = new(Symbol_List);
+  syms->sym = procedure_parameter();
+  if (match(SEMICOLON_TOKEN))
+    syms->next = formal_parameter_list();
+  else
+    syms->next = 0;
+  return syms;
+}
+
+Symbol *procedure_parameter() {
+  Symbol_List *args = 0;
+  char *id;
+
+  id = identifier();
+  if (match(LPAREN_TOKEN)) {
+    args = formal_parameter_list();
+    need(RPAREN_TOKEN);
+  }
+  return new_procedure_parameter_symbol(id, args);
 }
 
 Symbol_List *functional_parameter_specification() {
-  XXX();
-  return 0;
+  Symbol_List *syms = new(Symbol_List);
+  syms->sym = function_parameter();
+  if (match(SEMICOLON_TOKEN))
+    syms->next = formal_parameter_list();
+  else
+    syms->next = 0;
+  return syms;
 }
 
+Symbol *function_parameter() {
+  Symbol_List *args = 0;
+  Type *t;
+  char *id;
+  
+  
+  id = identifier();
+  if (match(LPAREN_TOKEN)) {
+    args = formal_parameter_list();
+    need(RPAREN_TOKEN);
+  }
+  need(COLON_TOKEN);
+  t = type_identifier(identifier());
+  return new_function_parameter_symbol(id, args, t);
+}
+    
 Block *block() {
+  Symbol_List *syms;
+  
   if (match(LABEL_TOKEN))
     label_declarations();
   if (match(CONST_TOKEN))
     constant_definitions();
   if (match(TYPE_TOKEN))
     type_definitions();
-  if (match(VAR_TOKEN))
-    variable_declarations();
+  if (match(VAR_TOKEN)) {
+    syms = variable_declarations();
+    insert_symbols(syms);
+  }
   for (;;) {
     if (match(PROCEDURE_TOKEN))
       procedure();

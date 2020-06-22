@@ -203,6 +203,7 @@ extern Type *integer_type;
 extern Type *real_type;
 extern Type *text_type;
 extern Type *forward_type;
+extern Constant *nil_constant;
 
 void initialize_symbols(void);
 Symbol *new_program_symbol(char *, Identifier_List *);
@@ -210,6 +211,7 @@ Symbol *new_val_param_symbol(char *, Type *);
 void push_symbol_table(void);
 void pop_symbol_table(void);
 
+void insert_symbols(Symbol_List *);
 void insert(Symbol *);
 Symbol *lookup(char *);
 void add_parameters(Symbol_List *);
@@ -229,6 +231,8 @@ void next_token(void);
 
 Symbol *new_procedure_symbol(char *, Symbol_List *);
 Symbol *new_function_symbol(char *, Symbol_List *, Type *);
+Symbol *new_procedure_parameter_symbol(char *, Symbol_List *);
+Symbol *new_function_parameter_symbol(char *, Symbol_List *, Type *);
 Symbol *new_parameter_symbol(char *, Type *,  Symbol_Class);
 Symbol *new_constant_symbol(char *, Constant *);
 Symbol *new_type_symbol(char *, Type *);
@@ -259,6 +263,7 @@ char *identifier(void);
 /* stmts.c */
 
 void compound_statement(void);
+void actual_parameter_list(Symbol_List *);
 
 /* expr.c */
 

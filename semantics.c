@@ -150,6 +150,29 @@ Symbol *new_function_symbol(char *id, Symbol_List *args, Type *t) {
   return sym;
 }
 
+Symbol *new_procedure_parameter_symbol(char *id, Symbol_List *args) {
+  Symbol *sym = new(Symbol);
+  
+  sym->class = PROCARG_SYMBOL;
+  sym->name = id;
+  sym->proc.params = args;
+  sym->proc.block = 0;
+  sym->proc.state = DEFINED;
+  return sym;
+}
+
+Symbol *new_function_parameter_symbol(char *id, Symbol_List *args, Type *t) {
+  Symbol *sym = new(Symbol);
+
+  sym->class = FUNCARG_SYMBOL;
+  sym->name = id;
+  sym->func.params = args;
+  sym->func.block = 0;
+  sym->func.state = DEFINED;
+  sym->func.type = t;
+  return sym;
+}
+
 Symbol *new_parameter_symbol(char *id, Type *type, Symbol_Class class) {
   Symbol *sym = new(Symbol);
   sym->class = class;
@@ -158,8 +181,7 @@ Symbol *new_parameter_symbol(char *id, Type *type, Symbol_Class class) {
   sym->var.type = type;
   return sym;
 }
-
-  
+ 
 Symbol *new_field_symbol(char *id, Type *t) {
   Symbol *sym = new_symbol(id, FIELD_SYMBOL);
   sym->name = id;

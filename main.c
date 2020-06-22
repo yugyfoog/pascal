@@ -44,7 +44,8 @@ void options(int argc, char **argv) {
   input_name = argv[1];
   output_name = strdup(input_name);
   extension = strrchr(output_name, '.');
-  if (extension == 0 || strcmp(extension, ".p") != 0)
+  if (extension == 0 || (strcmp(extension, ".p") != 0
+			 && strcmp(extension, ".pas") != 0))
     fatal_error("source file must have '.p' extension");
   strcpy(extension, ".s");
 }

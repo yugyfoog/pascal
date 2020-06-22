@@ -20,7 +20,6 @@ Type *forward_type;
 Constant *nil_constant;
 
 unsigned hash(char *);
-void insert(Symbol *);
 
 Symbol *new_type_symbol(char *, Type *);
 Symbol *new_constant_symbol(char *, Constant *);
@@ -157,6 +156,13 @@ Symbol *new_standard_function(char *name, Standard_Function func) {
 void insert_parameters(Symbol_List *syms) {
   for (; syms; syms = syms->next)
     insert(syms->sym);
+}
+
+void insert_symbols(Symbol_List *syms) {
+  while (syms) {
+    insert(syms->sym);
+    syms = syms->next;
+  }
 }
 
 void insert(Symbol *sym) {

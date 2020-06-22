@@ -7,8 +7,10 @@ void simple_expression(void);
 void term(void);
 void factor(void);
 void set_constructor(void);
-void function_designator(void);
-void standard_function(void);
+void member_designator_list(void);
+void member_designator(void);
+void function_designator(Symbol *);
+void standard_function(Standard_Function);
 Constant *unsigned_constant(void);
 Constant *integer_constant(void);
 Constant *real_constant(void);
@@ -16,6 +18,24 @@ Constant *char_constant(void);
 Constant *string_constant(void);
 char *fix_string(char *);
 Constant *identified_constant(void);
+void abs_function(void);
+void sqr_function(void);
+void sin_function(void);
+void cos_function(void);
+void exp_function(void);
+void ln_function(void);
+void sqrt_function(void);
+void arctan_function(void);
+void trunc_function(void);
+void round_function(void);
+void ord_function(void);
+void chr_function(void);
+void succ_function(void);
+void pred_function(void);
+void odd_function(void);
+void eoln_function(void);
+void eof_function(void);
+
 
 void expression() {
   simple_expression();
@@ -91,6 +111,7 @@ void factor() {
   case REAL_TOKEN:
   case CHAR_TOKEN:
   case STRING_TOKEN:
+  case NIL_TOKEN:
     unsigned_constant();
     break;
   case IDENTIFIER_TOKEN:
@@ -108,10 +129,10 @@ void factor() {
 	break;
       case FUNCTION_SYMBOL:
       case FUNCARG_SYMBOL:
-	function_designator();
+	function_designator(sym);
 	break;
       case STDFUNC_SYMBOL:
-	standard_function();
+	standard_function(sym->stdfunc);
 	break;
       default:
 	error("illegal expression near %s", token);
@@ -126,7 +147,23 @@ void factor() {
 }
 
 void set_constructor() {
-  XXX();
+  next_token();
+  if (match(RBRACK_TOKEN))
+    return;
+  member_designator_list();
+  need(RBRACK_TOKEN);
+}
+
+void member_designator_list() {
+  do
+    member_designator();
+  while (match(COMMA_TOKEN));
+}
+
+void member_designator() {
+  expression();
+  if (match(ELLIPSIS_TOKEN))
+    expression();
 }
 
 void variable_access() {
@@ -147,11 +184,178 @@ void variable_access() {
   }
 }
 
-void function_designator() {
+void function_designator(Symbol *sym) {
+  next_token();
+  if (sym->func.params) {
+    need(LPAREN_TOKEN);
+    actual_parameter_list(sym->func.params);
+    need(RPAREN_TOKEN);
+  }
+}
+
+void standard_function(Standard_Function func) {
+  switch(func) {
+  case ABS_FUNCTION:
+    abs_function();
+    break;
+  case SQR_FUNCTION:
+    sqr_function();
+    break;
+  case SIN_FUNCTION:
+    sin_function();
+    break;
+  case COS_FUNCTION:
+    cos_function();
+    break;
+  case EXP_FUNCTION:
+    exp_function();
+    break;
+  case LN_FUNCTION:
+    ln_function();
+    break;
+  case SQRT_FUNCTION:
+    sqrt_function();
+    break;
+  case ARCTAN_FUNCTION:
+    arctan_function();
+    break;
+  case TRUNC_FUNCTION:
+    trunc_function();
+    break;
+  case ROUND_FUNCTION:
+    round_function();
+    break;
+  case ORD_FUNCTION:
+    ord_function();
+    break;
+  case CHR_FUNCTION:
+    chr_function();
+    break;
+  case SUCC_FUNCTION:
+    succ_function();
+    break;
+  case PRED_FUNCTION:
+    pred_function();
+    break;
+  case ODD_FUNCTION:
+    odd_function();
+    break;
+  case EOLN_FUNCTION:
+    eoln_function();
+    break;
+  case EOF_FUNCTION:
+    eof_function();
+    break;
+  }
+}
+
+void abs_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void sqr_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void sin_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void cos_function(void) {
   XXX();
 }
 
-void standard_function() {
+void exp_function() {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void ln_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void sqrt_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void arctan_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void trunc_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void round_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void ord_function() {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void chr_function() {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void succ_function() {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void pred_function() {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void odd_function(void) {
+  next_token();
+  need(LPAREN_TOKEN);
+  expression();
+  need(RPAREN_TOKEN);
+}
+
+void eoln_function(void) {
+  XXX();
+}
+
+void eof_function(void) {
   XXX();
 }
 
@@ -201,6 +405,9 @@ Constant *unsigned_constant() {
     return string_constant();
   case IDENTIFIER_TOKEN:
     return identified_constant();
+  case NIL_TOKEN:
+    next_token();
+    return nil_constant;
   default:
     error("constant expected near %s", token);
   }
