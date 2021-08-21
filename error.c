@@ -1,51 +1,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include "machine.h"
 #include "pascal.h"
 
-int error_count;
+#define MAX_ERRORS 16
 
-void location() {
-  printf("%s: %d: ", input_name, line_number);
+int error_count = 0;
+
+void location(void);
+
+void syntax_error(int n) {
+  error("syntax error (%d) near %s", n, token);
 }
 
 void warning(char *fmt, ...) {
   va_list args;
-  
+
+  printf("warning: ");
   location();
   va_start(args, fmt);
   vprintf(fmt, args);
-  printf("\n");
   va_end(args);
+  printf("\n");
 }
 
 void error(char *fmt, ...) {
   va_list args;
-  
+
+  printf("error: ");
   location();
   va_start(args, fmt);
   vprintf(fmt, args);
-  printf("\n");
   va_end(args);
-  if (++error_count > MAX_ERRORS)
+  printf("\n");
+  if (error_count++ >= MAX_ERRORS)
     fatal_error("too many errors");
 }
 
 void fatal_error(char *fmt, ...) {
   va_list args;
-  
+
+  printf("fatal error: ");
   location();
   va_start(args, fmt);
   vprintf(fmt, args);
-  printf("\n");
   va_end(args);
+  printf("\n");
   exit(1);
 }
 
-void x_undefined(char *file, char const *func, int line) {
-  fatal_error("%s() undefined at line %d and file %s", func, line, file);
+void location() {
+  printf("%s: %d: ", input_name, line_number);
 }
 
-void x_internal_error(char *file, char const *func, int line) {
-  fatal_error("internal error in %s() at line %d in file %s", func, line, file);
+void x_undefined(char *file, int line, char const *func) {
+  fatal_error("%s() -- undefined in %s at line %d", func, file, line);
+}
+
+void x_internal_error(char *file, int line, char const *func) {
+  fatal_error("internal error in %s() at %s, line %d", func, file, line);
 }

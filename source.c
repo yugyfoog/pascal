@@ -3,19 +3,20 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include "machine.h"
 #include "pascal.h"
 
+#define KEYWORDS (WITH_TOKEN+1)
 #define TOKEN_DELTA 16
-#define KEYWORDS ((int)WITH_TOKEN + 1)
 
-int line_number = 1;
+int line_number = 1; /* start counting lines at 1 */
 
 char *token;
 Token_Type token_type;
-int token_size;
 int token_index;
+int token_allocated;
 
-int char_stack[4];
+int char_stack[4]; /* 4 should be more than enough */
 int char_index;
 
 char *token_name[] = {
@@ -26,25 +27,27 @@ char *token_name[] = {
   "program", "record", "repeat", "set", "then",
   "to", "type", "until", "var", "while", "with",
   "+", "-", "*", "/",
-  ".", ",", ":", ";",
   "=", "<>", "<", "<=", ">", ">=",
+  ".", ",", ":", ";",
   "(", ")", "[", "]",
-  ":=", "..", "^",
-  "integer constant", "real constant",
-  "character constant", "string constant",
-  "identifier", "end of file"
+  ":=", "^", "..",
+  "identifier", "integer", "real", "string",
+  "end of file"
 };
 
-void token_reset(void);
-void expand_token(void);
-void token_add(int);
 void white_space(void);
 void comment(void);
-void identifier_or_keyword(void);
+void word_symbol(void);
 void number_symbol(void);
+void digits(void);
 void string_symbol(void);
 void character_symbol(void);
 Token_Type follow(char *, ...);
+
+void token_reset(void);
+void token_add(int);
+void token_expand(void);
+
 int peek_char(void);
 int next_char(void);
 void back_char(int);
@@ -53,19 +56,21 @@ bool check(Token_Type tt) {
   return token_type == tt;
 }
 
-bool match(Token_Type t) {
-  if (token_type != t)
-    return false;
-  next_token();
-  return true;
-}
-
-void need(Token_Type t) {
-  if (token_type == t)
+void need(Token_Type tt) {
+  if (check(tt))
     next_token();
   else
-    error("missing %s near %s", token_name[t], token);
-}   
+    error("missing %s near %s", token_name[tt], token);
+}
+
+bool match(Token_Type tt) {
+  if (check(tt)) {
+    next_token();
+    return true;
+  }
+  return false;
+}
+    
 
 void next_token() {
   int c;
@@ -76,7 +81,7 @@ void next_token() {
   if (c == EOF)
     token_type = END_OF_FILE_TOKEN;
   else if (isalpha(c))
-    identifier_or_keyword();
+    word_symbol();
   else if (isdigit(c))
     number_symbol();
   else if (c == '\'')
@@ -90,6 +95,8 @@ void white_space() {
 
   for (;;) {
     c = next_char();
+    if (c == EOF)
+      return;
     if (c == '{')
       comment();
     else if (c == '(') {
@@ -102,20 +109,31 @@ void white_space() {
 	return;
       }
     }
-    else if (!isspace(c)) {
+    else if (isgraph(c)) { /* treat all control characters as white-space */
       back_char(c);
       return;
     }
-    if (c == '\n')
+    else if (c == '\n')
       line_number++;
   }
 }
 
 void comment() {
   int c;
-
+  int save_line_number = line_number;
+  int temp;
+  
+  c = next_char();
   for (;;) {
-    c = next_char();
+    if (c == EOF) {
+      temp = line_number;
+      line_number = save_line_number;
+      error("non-terminated comment");
+      line_number = temp;
+      return;
+    }
+    if (c == '}')
+      return;
     if (c == '*') {
       do
 	c = next_char();
@@ -123,18 +141,17 @@ void comment() {
       if (c == ')')
 	return;
     }
-    if (c == '}')
-      return;
-    if (c == EOF)
-      fatal_error("missing end of comment");
-    if (c == '\n')
-      line_number++;
+    else {
+      if (c == '\n')
+	line_number++;
+      c = next_char();
+    }
   }
-}	
+}
 
-void identifier_or_keyword() {
-  int high, low, mid;
-  int t, c;
+void word_symbol() {
+  int low, mid, high;
+  int test, c;
 
   for (;;) {
     c = next_char();
@@ -143,107 +160,94 @@ void identifier_or_keyword() {
     token_add(tolower(c));
   }
   back_char(c);
+
   token_type = IDENTIFIER_TOKEN;
   low = 0;
   high = KEYWORDS;
   while (low < high) {
-    mid = (low + high)/2;
-    t = strcmp(token, token_name[mid]);
-    if (t < 0)
+    mid = (high + low)/2;
+    test = strcmp(token, token_name[mid]);
+    if (test < 0)
       high = mid;
-    else if (t > 0)
-      low = mid + 1;
+    else if (test > 0)
+      low = mid+1;
     else {
       token_type = mid;
-      return;
+      break;
     }
   }
 }
 
 void number_symbol() {
-  int c, s;
+  int sign;
 
   token_type = INTEGER_TOKEN;
-  for (;;) {
-    c = next_char();
-    if (!isdigit(c))
-      break;
-    token_add(c);
-  }
-  if (c == '.') {
-    c = next_char();
-    if (!isdigit(c)) {
-      back_char(c);
+  digits();
+  if (peek_char() == '.') {
+    next_char();
+    if (!isdigit(peek_char())) {
       back_char('.');
       return;
     }
     token_type = REAL_TOKEN;
     token_add('.');
-    do {
-      token_add(c);
-      c = next_char();
-    } while (isdigit(c));
+    digits();
   }
-  if (c == 'E' || c == 'e') {
-    c = next_char();
-    if (c == '+') {
-      s = 1;
-      c = next_char();
-    }
-    else if (c == '-') {
-      s = -1;
-      c = next_char();
-    }
-    if (!isdigit(c)) {
-      back_char(c);
-      if (s == 1)
-	back_char('+');
-      else if (s == -1)
-	back_char('-');
+  if (tolower(peek_char()) == 'e') {
+    next_char();
+    sign = peek_char();
+    if (sign == '+' || sign == '-')
+      next_char();
+    else
+      sign = 0;
+    if (!isdigit(peek_char())) { /* Uh Oh */
+      if (sign)
+	back_char(sign);
       back_char('e');
       return;
     }
-    token_add('e');
-    if (s == -1)
-      token_add('-');
     token_type = REAL_TOKEN;
-    do {
-      token_add(c);
-      c = next_char();
-    } while (isdigit(c));
+    token_add('e');
+    if (sign)
+      token_add(sign);
+    digits();
   }
-  back_char(c);
 }
 
+void digits() {
+  int c;
+
+  for (;;) {
+    c = next_char();
+    if (isdigit(c))
+      token_add(c);
+    else {
+      back_char(c);
+      return;
+    }
+  }
+}
+  
 void string_symbol() {
   int c;
 
   token_type = STRING_TOKEN;
   c = next_char();
-  token_add(c);
-  for (;;) {
-    c = next_char();
-    token_add(c);
-    if (c == '\'') {
+  do {
+    do {
+      token_add(c);
       c = next_char();
-      if (c == '\'')
-	token_add(c);
-      else {
-	back_char(c);
-	break;
+      if (c == '\n' || c == EOF) {
+	error("missing quote");
+	line_number++;
+	token_add('\'');
+	return;
       }
-    }
-    else if (c == '\n' || c == EOF) {
-      error("missing quote");
-      token_add('\'');
-      back_char(c);
-      break;
-    }
-  }
-  if (strlen(token) == 3 || strcmp(token, "''''") == 0)
-    token_type = CHAR_TOKEN;
-  else
-    token_type = STRING_TOKEN;
+    } while (c != '\'');
+    token_add(c);
+    c = next_char();
+  } while (c == '\'');
+  back_char(c);
 }
 
 void character_symbol() {
@@ -268,19 +272,13 @@ void character_symbol() {
     token_type = EQ_TOKEN;
     break;
   case '<':
-    token_type = follow("=>", LE_TOKEN, NE_TOKEN, LT_TOKEN);
+    token_type = follow(">=", NE_TOKEN, LE_TOKEN, LT_TOKEN);
     break;
   case '>':
     token_type = follow("=", GE_TOKEN, GT_TOKEN);
     break;
-  case '[':
-    token_type = LBRACK_TOKEN;
-    break;
-  case ']':
-    token_type = RBRACK_TOKEN;
-    break;
   case '.':
-    token_type = follow(").", RBRACK_TOKEN, ELLIPSIS_TOKEN, PERIOD_TOKEN);
+    token_type = follow(".)", ELLIPSIS_TOKEN, RBRACK_TOKEN, PERIOD_TOKEN);
     break;
   case ',':
     token_type = COMMA_TOKEN;
@@ -291,64 +289,72 @@ void character_symbol() {
   case ';':
     token_type = SEMICOLON_TOKEN;
     break;
-  case '^':
-  case '@':
-    token_type = ARROW_TOKEN;
-    break;
   case '(':
     token_type = follow(".", LBRACK_TOKEN, LPAREN_TOKEN);
     break;
   case ')':
     token_type = RPAREN_TOKEN;
     break;
+  case '[':
+    token_type = LBRACK_TOKEN;
+    break;
+  case ']':
+    token_type = RBRACK_TOKEN;
+    break;
+  case '^':
+  case '@':
+    token_type = ARROW_TOKEN;
+    break;
+  default:
+    error("illegal character: '%c'", c);
+    next_token();
+    break;
   }
 }
 
 Token_Type follow(char *s, ...) {
+  Token_Type tt;
   va_list args;
-  Token_Type arg;
   int c;
 
   c = next_char();
   va_start(args, s);
   while (*s) {
-    arg = va_arg(args, Token_Type);
+    tt = va_arg(args, Token_Type);
     if (*s++ == c) {
-      token_add(c);
       va_end(args);
-      return arg;
+      return tt;
     }
   }
   back_char(c);
-  arg = va_arg(args, Token_Type);
+  tt = va_arg(args, Token_Type);
   va_end(args);
-  return arg;
+  return tt;
 }
 
 void token_reset() {
-  if (token_size < 1)
-    expand_token();
-  token_index = 0;
+  if (token == 0)
+    token_expand();
   token[0] = '\0';
+  token_index = 0;
 }
 
 void token_add(int c) {
-  if (token_size - 1 <= token_index)
-    expand_token();
+  if (token_index >= token_allocated-1)
+    token_expand();
   token[token_index++] = c;
   token[token_index] = '\0';
 }
 
-void expand_token() {
-  token_size += TOKEN_DELTA;
-  token = realloc(token, token_size);
+void token_expand() {
+  token_allocated += TOKEN_DELTA;
+  token = realloc(token, token_allocated);
 }
 
 int peek_char() {
   if (char_index)
     return char_stack[char_index-1];
-  char_index = 1;
-  return char_stack[0] = getc(input);
+  return char_stack[char_index++] = getc(input);
 }
 
 int next_char() {
@@ -360,3 +366,4 @@ int next_char() {
 void back_char(int c) {
   char_stack[char_index++] = c;
 }
+
