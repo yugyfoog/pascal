@@ -31,6 +31,7 @@ Statement_Sequence *write_parameters_more(Symbol *, Expression *, Statement_Sequ
 Statement_Sequence *write_parameters_text(Symbol *, Statement_Sequence *);
 Statement_Sequence *write_parameters_text_more(Symbol *, Expression *, Statement_Sequence *);
 Statement *page_procedure(Symbol *);
+Statement *new_page_procedure(Expression *, Symbol *);
 Statement *new_procedure(Symbol *);
 Statement *new_new_procedure(Expression *, Symbol *);
 Statement *dispose_procedure(Symbol *);
@@ -484,8 +485,23 @@ Statement_Sequence *write_parameters_text_more(Symbol *file, Expression *e,
 }
 
 Statement *page_procedure(Symbol *label) {
-  XXX();
-  return 0;
+  Expression *e;
+  
+  if (match(LPAREN_TOKEN)) {
+    e = expression();
+    need(RPAREN_TOKEN);
+  }
+  else
+    e = new_variable_expression(lookup_symbol("output"));
+  return new_page_procedure(e, label);
+}
+
+Statement *new_page_procedure(Expression *e, Symbol *label) {
+  Statement *stmt = new_statement(PAGE_STATEMENT, label);
+  if (e->type != text_type)
+    error("parameter to page procedure not a text file");
+  stmt->parameter = e;
+  return stmt;
 }
 
 Statement *new_procedure(Symbol *label) {

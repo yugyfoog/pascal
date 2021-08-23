@@ -27,7 +27,9 @@ void gen_return(long);
 void gen_statement_label(char *);
 void gen_internal_label(int);
 void gen_procedure_call(char *);
+void gen_procedure_call_indirect(void);
 void gen_function_call(char *);
+void gen_function_call_indirect(void);
 void gen_return_signed(int);
 void gen_return_unsigned(int);
 void gen_return_real(void);
@@ -78,6 +80,7 @@ void gen_integer_subtract(void);
 void gen_integer_multiply(void);
 void gen_integer_divide(void);
 void gen_integer_modulus(void);
+void gen_real_negate(void);
 void gen_real_add(void);
 void gen_real_subtract(void);
 void gen_real_multiply(void);
@@ -143,6 +146,7 @@ void gen_write_real_float(void);
 void gen_write_real_fixed(void);
 void gen_write_string(void);
 void gen_writeln(void);
+void gen_page(void);
 void gen_new(void);
 void gen_dispose(void);
 void gen_argc(void);
@@ -178,8 +182,14 @@ void gen_code(Code *code) {
       case PROCEDURE_CALL_OP:
 	gen_procedure_call(code->name);
 	break;
+      case PROCEDURE_CALL_INDIRECT_OP:
+	gen_procedure_call_indirect();
+	break;
       case FUNCTION_CALL_OP:
 	gen_function_call(code->name);
+	break;
+      case FUNCTION_CALL_INDIRECT_OP:
+	gen_function_call_indirect();
 	break;
       case LOAD_ORDINAL_CONSTANT_OP:
 	gen_load_ordinal_constant(code->value);
@@ -313,7 +323,7 @@ void gen_code(Code *code) {
       case SET_GE_OP:
 	gen_set_ge();
 	break;
-      case INTEGER_MINUS_OP:
+      case INTEGER_NEGATE_OP:
 	gen_integer_negate();
 	break;
       case INTEGER_ADD_OP:
@@ -330,6 +340,9 @@ void gen_code(Code *code) {
 	break;
       case INTEGER_MODULUS_OP:
 	gen_integer_modulus();
+	break;
+      case REAL_NEGATE_OP:
+	gen_real_negate();
 	break;
       case REAL_ADD_OP:
 	gen_real_add();
@@ -520,6 +533,9 @@ void gen_code(Code *code) {
       case WRITELN_OP:
 	gen_writeln();
 	break;
+      case PAGE_OP:
+	gen_page();
+	break;
       case NEW_OP:
 	gen_new();
 	break;
@@ -609,9 +625,19 @@ void gen_procedure_call(char *name) {
   fprintf(output, "\tcall\t%s\n", name);
 }
 
+void gen_procedure_call_indirect() {
+  fprintf(output, "\tpop\t%%rax\n");
+  fprintf(output, "\tcall\t*(%%rax)\n");
+}
+
 void gen_function_call(char *name) {
   fprintf(output, "\tcall\t%s\n", name);
   fprintf(output, "\tpush\t%%rax\n");
+}
+
+void gen_function_call_indirect() {
+  fprintf(output, "\tpop\t%%rax\n");
+  fprintf(output, "\tcall\t*(%%rax)\n");
 }
 
 void gen_load_ordinal_constant(long x) {
@@ -638,10 +664,6 @@ void gen_load_string_constant(char *x) {
   fprintf(output, "\tpush\t%%rax\n");
 }
 
-void gen_load_set_constant(unsigned long x) {
-  XXX();
-}
- 
 void gen_load_variable_address(int level, int delta, long offset) {
   if (delta == 0) {  /* local */
     if (offset < 0) { /* variable */
@@ -839,11 +861,6 @@ void gen_integer_to_real() {
   fprintf(output, "\tmovsd\t%%xmm0,(%%rsp)\n");
 }
 
-
-void gen_load_constant_ordinal(long x) {
-  XXX();
-}
-
 void gen_get() {
   fprintf(output, "\tcall\tget_x\n");
 }
@@ -944,6 +961,10 @@ void gen_write_string() {
 
 void gen_writeln() {
   fprintf(output, "\tcall\twriteln_x\n");
+}
+
+void gen_page() {
+  fprintf(output, "\tcall\tpage_x\n");
 }
 
 void gen_new() {
@@ -1257,6 +1278,11 @@ void gen_integer_modulus() {
   fprintf(output, "\tcqto\n");
   fprintf(output, "\tidiv\t%%rcx\n");
   fprintf(output, "\tpush\t%%rdx\n");
+}
+
+void gen_real_negate() {
+  fprintf(output, "\tmov\t$%ld,%%rax\n", 0x8000000000000000);
+  fprintf(output, "\txor\t%%rax,(%%rsp)\n");
 }
 
 void gen_real_add() {

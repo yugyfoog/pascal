@@ -13,6 +13,9 @@ long variable_offset;
 
 Symbol_List *with_symbol_stack = 0;
 
+void check_procedure_parameters(Symbol *, Symbol *);
+void check_function_parameters(Symbol *, Symbol *);
+void check_parameters(Symbol_List *, Symbol_List *);
 Symbol *find_field(Type *, char *);
 Symbol *search_field_list(Symbol_List *, char *);
 Symbol *search_variant(Variant_Part *, char *);
@@ -689,16 +692,59 @@ Expression *new_set_range_expression(Expression *e, Expression *f) {
 }
 
 Expression *new_procedural_parameter_expression(Symbol *proc, Symbol *check) {
-  /* I should be checking to see if proc and check have the same types */
-  Expression *e = new_expression(PROCEDURAL_PARAMETER_EXPRESSION, proc->algorithm.type);
+  Expression *e;
+  
+  check_procedure_parameters(proc, check);
+  e = new_expression(PROCEDURAL_PARAMETER_EXPRESSION, proc->algorithm.type);
   e->variable = proc;
   return e;
 }
 
 Expression *new_functional_parameter_expression(Symbol *func, Symbol *check) {
-  Expression *e = new_expression(FUNCTIONAL_PARAMETER_EXPRESSION, func->algorithm.type);
+  Expression *e;
+
+  check_function_parameters(func, check);
+  e = new_expression(FUNCTIONAL_PARAMETER_EXPRESSION, func->algorithm.type);
   e->variable = func;
   return e;
+}
+
+void check_procedure_parameters(Symbol *p1, Symbol *p2) {
+  check_parameters(p1->algorithm.parameters, p2->algorithm.parameters);
+}
+
+void check_function_parameters(Symbol *f1, Symbol *f2) {
+  if (f1->algorithm.type != f2->algorithm.type)
+    error("function type of %s and %s do not match", f1->name, f2->name);
+  check_parameters(f1->algorithm.parameters, f2->algorithm.parameters);
+}
+
+void check_parameters(Symbol_List *ps1, Symbol_List *ps2) {
+  while (ps1 && ps2) {
+    if (ps1->symbol->class != ps2->symbol->class) {
+      error("parameter type of %s and %s do not match", ps1->symbol->name, ps2->symbol->name);
+      return;
+    }
+    switch (ps1->symbol->class) {
+    case VALUE_PARAMETER:
+    case VARIABLE_PARAMETER:
+      if (ps1->symbol->variable.type != ps2->symbol->variable.type)
+	error("paramter class of %s and %s do not match", ps1->symbol->name, ps2->symbol->name);
+      break;
+    case PROCEDURE_PARAMETER:
+      check_procedure_parameters(ps1->symbol, ps2->symbol);
+      break;
+    case FUNCTION_PARAMETER:
+      check_function_parameters(ps1->symbol, ps2->symbol);
+      break;
+    default:
+      internal_error();
+    }
+    ps1 = ps1->next;
+    ps2 = ps2->next;
+  }
+  if (ps1 || ps2)
+    error("numer of parameters different");
 }
 
 Expression *new_abs_function(Expression *e) {

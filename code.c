@@ -28,7 +28,7 @@ Code *code_compound_statement(Statement_Sequence *);
 Code *code_assignment_statement(Expression *, Expression *);
 Code *code_if_statement(Expression *, Statement *, Statement *);
 Code *code_case_statement(Expression *, Case_Element_List *);
-Code *code_case_elements(Case_Element_List *, long, long, int);
+Code *code_case_elements(Case_Element_List *, int);
 void find_range(Case_Element_List *, long *, long *);
 void find_range_list(Constant_List *, long *, long *);
 Code *build_jump_table(Case_Element_List *, long, long, int);
@@ -48,11 +48,9 @@ Code *code_put(Expression *);
 Code *code_read(Symbol *, Expression *);
 Code *code_read_text(Symbol *, Expression *);
 Code *code_read_ordinal(Symbol *, Expression *);
-Code *code_read_boolean(Symbol *, Expression *);
 Code *code_read_char(Symbol *, Expression *);
 Code *code_read_integer(Symbol *, Expression *);
 Code *code_read_real(Symbol *, Expression *);
-Code *code_read_string(Symbol *, Expression *);
 Code *code_readln(Symbol *);
 Code *code_write(Symbol *, Expression *);
 Code *code_write_text(Symbol *, Expression *, Expression *, Expression *);
@@ -65,6 +63,7 @@ Code *code_write_real_float(Symbol *, Expression *, Expression *);
 Code *code_write_real_fixed(Symbol *, Expression *, Expression *, Expression *);
 Code *code_write_string(Symbol *, Expression *, Expression *);
 Code *code_writeln(Symbol *);
+Code *code_page(Expression *);
 Code *code_new(Expression *);
 Code *code_dispose(Expression *);
 Code *code_pack(Expression *, Expression *, Expression *);
@@ -178,7 +177,9 @@ Code *new_enter_op(long, int);
 Code *new_leave_op(void);
 Code *new_return_op(long);
 Code *new_function_call_op(char *);
+Code *new_function_call_indirect_op(void);
 Code *new_procedure_call_op(char *);
+Code *new_procedure_call_indirect_op(void);
 Code *new_file_access_op(void);
 Code *new_load_ordinal_constant_op(long);
 Code *new_load_real_constant_op(double);
@@ -225,12 +226,13 @@ Code *new_ordinal_ge_op(void);
 Code *new_real_ge_op(void);
 Code *new_string_ge_op(long);
 Code *new_set_ge_op(void);
-Code *new_integer_minus_op(void);
+Code *new_integer_negate_op(void);
 Code *new_integer_add_op(void);
 Code *new_integer_subtract_op(void);
 Code *new_integer_multiply_op(void);
 Code *new_integer_divide_op(void);
 Code *new_integer_modulus_op(void);
+Code *new_real_negate_op(void);
 Code *new_real_add_op(void);
 Code *new_real_subtract_op(void);
 Code *new_real_multiply_op(void);
@@ -294,6 +296,7 @@ Code *new_write_real_float_op(void);
 Code *new_write_real_fixed_op(void);
 Code *new_write_string_op(void);
 Code *new_writeln_op(void);
+Code *new_page_op(void);
 Code *new_new_op(void);
 Code *new_dispose_op(void);
 Code *new_argv_op(void);
@@ -489,6 +492,8 @@ Code *code_statement(Statement *stmt) {
 			   stmt->write.fractional_digits);
   case WRITELN_STATEMENT:
     return code_writeln(stmt->writeln);
+  case PAGE_STATEMENT:
+    return code_page(stmt->parameter);
   case NEW_STATEMENT:
     return code_new(stmt->parameter);
   case DISPOSE_STATEMENT:
@@ -570,7 +575,7 @@ Code *code_case_statement(Expression *index, Case_Element_List *elements) {
     I need to make sure build_jump_table is called before code_case_elements
   */
   return sequence3(code,
-		   code_case_elements(elements, minimum, maximum, l2),
+		   code_case_elements(elements, l2),
 		   new_internal_label(l2));
 }
 
@@ -606,7 +611,7 @@ Code *build_jump_table(Case_Element_List *elements, long minimum, long maximum, 
 		   new_jump_table(table, size));
 }
 
-Code *code_case_elements(Case_Element_List *elements, long minimum, long maximum, int case_end) {
+Code *code_case_elements(Case_Element_List *elements, int case_end) {
   Code *code = 0;
   
   while (elements) {
@@ -902,8 +907,6 @@ Code *code_read_text(Symbol *file, Expression *e) {
     return code_read_ordinal(file, e);
   case REAL_TYPE:
     return code_read_real(file, e);
-  case ARRAY_TYPE:
-    return code_read_string(file, e);
   default:
     internal_error();
   }
@@ -911,18 +914,11 @@ Code *code_read_text(Symbol *file, Expression *e) {
 }
 
 Code *code_read_ordinal(Symbol *file, Expression *e) {
-  if (e->type->ordinal.base == boolean_type)
-    return code_read_boolean(file, e);
   if (e->type->ordinal.base == char_type)
     return code_read_char(file, e);
   if (e->type->ordinal.base == integer_type)
     return code_read_integer(file, e);
   internal_error();
-  return 0;
-}
-
-Code *code_read_boolean(Symbol *file, Expression *e) {
-  XXX();
   return 0;
 }
 
@@ -942,11 +938,6 @@ Code *code_read_real(Symbol *file, Expression *e) {
   return sequence3(code_load_address(e),
 		   code_load_variable(file),
 		   new_read_real_op());
-}
-
-Code *code_read_string(Symbol *file, Expression *e) {
-  XXX();
-  return 0;
 }
 
 Code *code_readln(Symbol *file) {
@@ -1091,6 +1082,11 @@ Code *code_write_string(Symbol *file, Expression *e, Expression *width) {
 Code *code_writeln(Symbol *file) {
   return sequence2(code_load_variable(file),
 		   new_writeln_op());
+}
+
+Code *code_page(Expression *e) {
+  return sequence2(code_load_value(e),
+		   new_page_op());
 }
 
 Code *code_new(Expression *e) {
@@ -1449,7 +1445,7 @@ Code *code_integer_plus(Expression *e) {
 
 Code *code_integer_minus(Expression *e) {
   return sequence2(code_load_value(e),
-		   new_integer_minus_op());
+		   new_integer_negate_op());
 }
 
 Code *code_integer_add(Expression *e, Expression *f) {
@@ -1619,8 +1615,8 @@ Code *code_real_plus(Expression *e) {
 }
 
 Code *code_real_minus(Expression *e) {
-  XXX();
-  return 0;
+  return sequence2(code_load_value(e),
+		   new_real_negate_op());
 }
 
 Code *code_real_add(Expression *e, Expression *f) {
@@ -1725,6 +1721,8 @@ Code *code_load_variable_address(Symbol *sym) {
   switch (sym->class) {
   case VARIABLE_SYMBOL:
   case VALUE_PARAMETER:
+  case PROCEDURE_PARAMETER:
+  case FUNCTION_PARAMETER:
     return new_load_variable_address_op(current_algorithm->block_level,
 					current_algorithm->block_level - sym->block_level,
 					sym->variable.offset);
@@ -1822,13 +1820,31 @@ Code *code_store(Type *t) {
 }
 
 Code *code_function_call(Symbol *sym, Expression_List *params) {
-  return sequence2(code_parameters(sym->algorithm.parameters, params),
-		   new_function_call_op(sym->name));
+  Code *code = code_parameters(sym->algorithm.parameters, params);
+  if (sym->class == FUNCTION_SYMBOL)
+    return sequence2(code,
+		     new_function_call_op(sym->name));
+  if (sym->class == FUNCTION_PARAMETER)
+    return sequence4(code,
+		     code_load_variable_address(sym),
+		     new_fetch_op(),
+		     new_function_call_indirect_op());
+  internal_error();
+  return 0;
 }
 
 Code *code_procedure_call(Symbol *sym, Expression_List *params) {
-  return sequence2(code_parameters(sym->algorithm.parameters, params),
-		   new_procedure_call_op(sym->name));
+  Code *code = code_parameters(sym->algorithm.parameters, params);
+  if (sym->class == PROCEDURE_SYMBOL)
+    return sequence2(code,
+		     new_procedure_call_op(sym->name));
+  if (sym->class == PROCEDURE_PARAMETER)
+    return sequence4(code,
+		     code_load_variable_address(sym),
+		     new_fetch_op(),
+		     new_procedure_call_indirect_op());
+  internal_error();
+  return 0;
 }
 
 Code *code_parameters(Symbol_List *defs, Expression_List *exprs) {
@@ -1869,11 +1885,23 @@ Code *code_variable_parameter(Expression *e) {
 }
 
 Code *code_procedural_parameter(Symbol *proc) {
-  return new_load_algorithm_op(proc->name);
+  if (proc->class == PROCEDURE_SYMBOL)
+    return new_load_algorithm_op(proc->name);
+  if (proc->class == FUNCTION_PARAMETER)
+    return sequence2(code_load_variable_address(proc),
+		     new_fetch_op());
+  internal_error();
+  return 0;
 }
 
 Code *code_functional_parameter(Symbol *func) {
-  return new_load_algorithm_op(func->name);
+  if (func->class == FUNCTION_SYMBOL)
+    return new_load_algorithm_op(func->name);
+  if (func->class == FUNCTION_PARAMETER)
+    return sequence2(code_load_variable_address(func),
+		     new_fetch_op());
+  internal_error();
+  return 0;
 }
 
 Code *new_code(Operation op) {
@@ -1923,10 +1951,18 @@ Code *new_procedure_call_op(char *name) {
   return code;
 }
 
+Code *new_procedure_call_indirect_op() {
+  return new_code(PROCEDURE_CALL_INDIRECT_OP);
+}
+
 Code *new_function_call_op(char *name) {
   Code *code = new_code(FUNCTION_CALL_OP);
   code->name = name;
   return code;
+}
+
+Code *new_function_call_indirect_op() {
+  return new_code(FUNCTION_CALL_INDIRECT_OP);
 }
 
 Code *new_load_ordinal_constant_op(long cnst) {
@@ -2145,8 +2181,8 @@ Code *new_set_ge_op() {
   return new_code(SET_GE_OP);
 }
 
-Code *new_integer_minus_op() {
-  return new_code(INTEGER_MINUS_OP);
+Code *new_integer_negate_op() {
+  return new_code(INTEGER_NEGATE_OP);
 }
 
 Code *new_integer_add_op() {
@@ -2167,6 +2203,10 @@ Code *new_integer_divide_op() {
 
 Code *new_integer_modulus_op() {
   return new_code(INTEGER_MODULUS_OP);
+}
+
+Code *new_real_negate_op() {
+  return new_code(REAL_NEGATE_OP);
 }
 
 Code *new_real_add_op() {
@@ -2437,6 +2477,10 @@ Code *new_write_string_op() {
 
 Code *new_writeln_op() {
   return new_code(WRITELN_OP);
+}
+
+Code *new_page_op() {
+  return new_code(PAGE_OP);
 }
 
 Code *new_new_op() {
