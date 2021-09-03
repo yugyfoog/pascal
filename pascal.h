@@ -1,5 +1,4 @@
 #define internal_error() x_internal_error(__FILE__,__LINE__,__FUNCTION__)
-#define XXX() x_undefined(__FILE__,__LINE__,__FUNCTION__);
 
 #define new(T) (T *)malloc(sizeof(T))
 

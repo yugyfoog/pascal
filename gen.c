@@ -646,13 +646,7 @@ void gen_load_ordinal_constant(long x) {
 }
 
 void gen_load_real_constant(double r) {
-  union {
-    long i;
-    double f;
-  } x;
-
-  x.f = r;
-  fprintf(output, "\tmov\t$%ld,%%rax\n", x.i);
+  fprintf(output, "\tmov\t$%ld,%%rax\n", *(long *)&r);
   fprintf(output, "\tpush\t%%rax\n");
 }
 
@@ -804,7 +798,8 @@ void gen_return_unsigned(int size) {
 }
 
 void gen_return_real() {
-  XXX();
+  fprintf(output, "\tpop\t%%rax\n");
+  fprintf(output, "\tmov\t(%%rax),%%rax\n");
 }
 
 void gen_return_pointer() {
@@ -1100,7 +1095,7 @@ void gen_real_lt() {
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
   fprintf(output, "\tadd\t$8,%%rsp\n");
   fprintf(output, "\tcomisd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tsetl\t%%al\n");
+  fprintf(output, "\tseta\t%%al\n");
   fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
 }
 
@@ -1126,7 +1121,7 @@ void gen_real_le() {
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
   fprintf(output, "\tadd\t$8,%%rsp\n");
   fprintf(output, "\tcomisd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tsetle\t%%al\n");
+  fprintf(output, "\tsetae\t%%al\n");
   fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
 }
 
@@ -1177,7 +1172,7 @@ void gen_real_gt() {
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
   fprintf(output, "\tadd\t$8,%%rsp\n");
   fprintf(output, "\tcomisd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tsetg\t%%al\n");
+  fprintf(output, "\tsetb\t%%al\n");
   fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
 }
 
@@ -1203,7 +1198,7 @@ void gen_real_ge() {
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
   fprintf(output, "\tadd\t$8,%%rsp\n");
   fprintf(output, "\tcomisd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tsetg\t%%al\n");
+  fprintf(output, "\tsetbe\t%%al\n");
   fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
 }  
 
@@ -1293,10 +1288,10 @@ void gen_real_add() {
 }
 
 void gen_real_subtract() {
-  fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tadd\t$8,%%rsp\n");
+  fprintf(output, "\tmovsd\t8(%%rsp),%%xmm0\n");
   fprintf(output, "\tsubsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tmovsd\t%%xmm0,(%%rsp)\n");
+  fprintf(output, "\tmovsd\t%%xmm0,8(%%rsp)\n");
+  fprintf(output, "\tadd\t$8,%%rsp\n");
 }
 
 void gen_real_multiply() {
@@ -1307,10 +1302,10 @@ void gen_real_multiply() {
 }
 
 void gen_real_divide() {
-  fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tadd\t$8,%%rsp\n");
+  fprintf(output, "\tmovsd\t8(%%rsp),%%xmm0\n");
   fprintf(output, "\tdivsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tmovsd\t%%xmm0,(%%rsp)\n");
+  fprintf(output, "\tmovsd\t%%xmm0,8(%%rsp)\n");
+  fprintf(output, "\tadd\t$8,%%rsp\n");
 }
 
 void gen_not() {

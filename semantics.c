@@ -136,6 +136,10 @@ Statement *new_statement(Statement_Class class, Symbol *label) {
 Statement *new_assignment_statement(Expression *lval, Expression *rval,
 				    Symbol *label) {
   Statement *stmt = new_statement(ASSIGNMENT_STATEMENT, label);
+  if (!assignment_compatible(lval->type, rval->type))
+    error("incompatible types in assignment statement");
+  if (is_real(lval->type) && is_integer(rval->type))
+    rval = new_integer_to_real_expression(rval);
   stmt->assignment.lval = lval;
   stmt->assignment.rval = rval;
   return stmt;
@@ -445,7 +449,7 @@ Expression *new_minus_expression(Expression *e) {
   if (is_integer(e->type))
     return new_unary_expression(INTEGER_MINUS_EXPRESSION, integer_type, e);
   if (is_real(e->type))
-    return new_unary_expression(REAL_PLUS_EXPRESSION, real_type, e);
+    return new_unary_expression(REAL_MINUS_EXPRESSION, real_type, e);
   error("illegal type for minus operator");
   return 0;
 }
