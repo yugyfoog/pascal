@@ -28,10 +28,10 @@ Code *code_compound_statement(Statement_Sequence *);
 Code *code_assignment_statement(Expression *, Expression *);
 Code *code_if_statement(Expression *, Statement *, Statement *);
 Code *code_case_statement(Expression *, Case_Element_List *);
-Code *code_case_elements(Case_Element_List *, int);
+Code *code_case_elements(Case_Element_List *, int, int);
 void find_range(Case_Element_List *, long *, long *);
 void find_range_list(Constant_List *, long *, long *);
-Code *build_jump_table(Case_Element_List *, long, long, int);
+Code *build_jump_table(Case_Element_List *, long, long, int, int);
 Code *code_goto_statement(Symbol *);
 Code *code_local_goto(Symbol *);
 Code *code_interprocedural_goto(Symbol *);
@@ -269,8 +269,9 @@ Code *new_jump_op(int);
 Code *new_jump_true_op(int);
 Code *new_jump_false_op(int);
 Code *new_jump_label_op(char *);
-Code *new_jump_index(int, long);
-Code *new_jump_table(int *, long);
+Code *new_jump_index(int, long, int);
+Code *new_jump_table(int *, long, int);
+Code *new_case_error_op(void);
 Code *new_interprocedural_jump_op(long, long, char *);
 Code *new_get_op(void);
 Code *new_put_op(void);
@@ -563,19 +564,20 @@ Code *code_case_statement(Expression *index, Case_Element_List *elements) {
   long minimum, maximum;
   int l1 = new_label(); /* label of jump table */
   int l2 = new_label(); /* label of end of case statement */
+  int l3 = new_label(); /* otherwise label */
   minimum = maximum = elements->constants->cnst->ordinal;
   find_range(elements, &minimum, &maximum);
 
   code = sequence5(code_load_value(index),
 		   new_load_ordinal_constant_op(minimum),
 		   new_integer_subtract_op(),
-		   new_jump_index(l1, maximum-minimum+1),
-		   build_jump_table(elements, minimum, maximum, l1));
+		   new_jump_index(l1, maximum-minimum+1, l3),
+		   build_jump_table(elements, minimum, maximum, l1, l3));
   /*
     I need to make sure build_jump_table is called before code_case_elements
   */
   return sequence3(code,
-		   code_case_elements(elements, l2),
+		   code_case_elements(elements, l2, l3),
 		   new_internal_label(l2));
 }
 
@@ -596,31 +598,42 @@ void find_range_list(Constant_List *cnsts, long *minimum, long *maximum) {
   }
 }
 
-Code *build_jump_table(Case_Element_List *elements, long minimum, long maximum, int label) {
+Code *build_jump_table(Case_Element_List *elements, long minimum, long maximum, int label, int other_label) {
   Constant_List *cnsts;
   long size = maximum - minimum + 1;
   int *table = calloc(size, sizeof(int));
   
   while (elements) {
-    elements->label = new_label();
-    for (cnsts = elements->constants; cnsts; cnsts = cnsts->next)
-      table[cnsts->cnst->ordinal - minimum] = elements->label;
+    if (elements->constants == 0) /* otherwise */
+      elements->label = other_label;
+    else {
+      elements->label = new_label();
+      for (cnsts = elements->constants; cnsts; cnsts = cnsts->next)
+	table[cnsts->cnst->ordinal - minimum] = elements->label;
+    }
     elements = elements->next;
   }
   return sequence2(new_internal_label(label),
-		   new_jump_table(table, size));
+		   new_jump_table(table, size, other_label));
 }
 
-Code *code_case_elements(Case_Element_List *elements, int case_end) {
+Code *code_case_elements(Case_Element_List *elements, int case_end, int otherwise_label) {
   Code *code = 0;
+  bool otherwise_part = false;
   
   while (elements) {
+    if (elements->constants == 0)
+      otherwise_part = elements->label;
     code = sequence4(code,
 		     new_internal_label(elements->label),
 		     code_statement(elements->statement),
 		     new_jump_op(case_end));
     elements = elements->next;
   }
+  if (!otherwise_part)
+    code = sequence3(code,
+		     new_internal_label(otherwise_label),
+		     new_case_error_op());
   return code;
 }
 
@@ -2361,18 +2374,24 @@ Code *new_jump_label_op(char *lab) {
   return code;
 }
 
-Code *new_jump_index(int label, long size) {
+Code *new_jump_index(int label, long size, int other) {
   Code *code = new_code(JUMP_INDEX_OP);
   code->jump_index.label = label;
   code->jump_index.size = size;
+  code->jump_index.otherwise = other;
   return code;
 }
 
-Code *new_jump_table(int *table, long size) {
+Code *new_jump_table(int *table, long size, int otherwise_label) {
   Code *code = new_code(JUMP_TABLE);
   code->jump_table.table = table;
   code->jump_table.size = size;
+  code->jump_table.otherwise = otherwise_label;
   return code;
+}
+
+Code *new_case_error_op() {
+  return new_code(CASE_ERROR_OP);
 }
 
 Code *new_interprocedural_jump_op(long offset, long locals, char *name) {

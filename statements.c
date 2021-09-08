@@ -714,8 +714,12 @@ Statement *case_statement(Symbol *label) {
 
 Case_Element_List *case_element_list() {
   Case_Element_List *cases = new(Case_Element_List);
-  cases->constants = constant_list();
-  need(COLON_TOKEN);
+  if (match(OTHERWISE_TOKEN))
+    cases->constants = 0;
+  else {
+    cases->constants = constant_list();
+    need(COLON_TOKEN);
+  }
   cases->statement = statement();
   if (match(SEMICOLON_TOKEN)) {
     if (!check(END_TOKEN))

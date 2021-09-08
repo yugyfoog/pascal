@@ -118,8 +118,9 @@ void gen_jump(int);
 void gen_jump_true(int);
 void gen_jump_false(int);
 void gen_jump_label(char *);
-void gen_jump_index(int, long);
-void gen_jump_table(int *, long);
+void gen_jump_index(int, long, int);
+void gen_jump_table(int *, long, int);
+void gen_case_error(void);
 void gen_interprocedural_jump(long, long, char *);
 void gen_get(void);
 void gen_put(void);
@@ -450,10 +451,13 @@ void gen_code(Code *code) {
 	gen_jump_label(code->name);
 	break;
       case JUMP_INDEX_OP:
-	gen_jump_index(code->jump_index.label, code->jump_index.size);
+	gen_jump_index(code->jump_index.label, code->jump_index.size, code->jump_index.otherwise);
 	break;
       case JUMP_TABLE:
-	gen_jump_table(code->jump_table.table, code->jump_table.size);
+	gen_jump_table(code->jump_table.table, code->jump_table.size, code->jump_table.otherwise);
+	break;
+      case CASE_ERROR_OP:
+	gen_case_error();
 	break;
       case INTERPROCEDURAL_JUMP_OP:
 	gen_interprocedural_jump(code->inter.offset, code->inter.locals, code->inter.name);
@@ -1574,23 +1578,31 @@ void gen_jump_label(char *label) {
   fprintf(output, "\tjmp\t.LG%s\n", label);
 }
 
-void gen_jump_index(int label, long size) {
+void gen_jump_index(int label, long size, int other) {
   fprintf(output, "\tpop\t%%rax\n");
   fprintf(output, "\tcmp\t$%ld,%%rax\n", size);
-  fprintf(output, "\tjae\tcase_error\n");
+  fprintf(output, "\tjae\t.L%d\n", other);
   fprintf(output, "\tmov\t.L%d(,%%rax,8),%%rax\n", label);
   fprintf(output, "\tjmp\t*%%rax\n");
 };
 
-void gen_jump_table(int *table, long size) {
+void gen_jump_table(int *table, long size, int other) {
   long i;
   
   for (i = 0; i < size; i++) {
-    if (table[i] == 0)
-      fprintf(output, "\t.quad\tcase_error\n");
+    if (table[i] == 0) {
+      if (other == 0)
+	fprintf(output, "\t.quad\tcase_error\n");
+      else
+	fprintf(output, "\t.quad\t.L%d\n", other);
+    }
     else
       fprintf(output, "\t.quad\t.L%d\n", table[i]);
   }
+}
+
+void gen_case_error() {
+  fprintf(output, "\tjmp\tcase_error\n");
 }
 
 void gen_interprocedural_jump(long level, long locals, char *label) {

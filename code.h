@@ -12,11 +12,13 @@ typedef struct Variable_Code {
 typedef struct Jump_Index {
   int label;
   long size;
+  int otherwise;
 } Jump_Index;
 
 typedef struct Jump_Table {
   int *table;
   long size;
+  int otherwise;
 } Jump_Table;
 
 typedef struct Interprocedural_Jump {
@@ -69,7 +71,7 @@ typedef enum {
   EOF_OP, EOLN_OP,
   JUMP_OP, JUMP_TRUE_OP, JUMP_FALSE_OP,
   JUMP_LABEL_OP, JUMP_INDEX_OP,
-  JUMP_TABLE,
+  JUMP_TABLE, CASE_ERROR_OP,
   INTERPROCEDURAL_JUMP_OP,
   EMPTY_SET_OP,  TO_SET_OP,
   SET_UNION_OP, SET_INTERSECTION_OP,
