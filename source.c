@@ -23,7 +23,7 @@ char *token_name[] = {
   "and", "array", "begin", "case", "const", "div",
   "do", "downto", "else", "end", "file", "for",
   "function", "goto", "if", "in", "label", "mod",
-  "nil", "not", "of", "or", "otherwise", "packed", "procedure",
+  "nil", "not", "of", "or", "packed", "procedure",
   "program", "record", "repeat", "set", "then",
   "to", "type", "until", "var", "while", "with",
   "+", "-", "*", "/",

@@ -64,6 +64,7 @@ void initialize_symbols() {
   insert_symbol(new_standard_procedure("argv", ARGV_PROCEDURE));
   insert_symbol(new_standard_procedure("flush", FLUSH_PROCEDURE));
   insert_symbol(new_standard_procedure("close", CLOSE_PROCEDURE));
+  insert_symbol(new_standard_procedure("exit", EXIT_PROCEDURE));
   
   insert_symbol(new_standard_function("abs", ABS_FUNCTION));
   insert_symbol(new_standard_function("sqr", SQR_FUNCTION));

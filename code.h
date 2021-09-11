@@ -24,7 +24,7 @@ typedef struct Jump_Table {
 typedef struct Interprocedural_Jump {
   long offset;
   long locals;
-  char *name;
+  int label;
 } Interprocedural_Jump;
 
 typedef enum {
@@ -93,7 +93,7 @@ typedef enum {
   WRITELN_OP, PAGE_OP,
   NEW_OP, DISPOSE_OP,
   ARGC_OP, ARGV_OP,
-  FLUSH_OP, CLOSE_OP,
+  FLUSH_OP, CLOSE_OP, EXIT_OP
 } Operation;
 
 typedef struct Code {

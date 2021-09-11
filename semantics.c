@@ -73,6 +73,14 @@ bool is_set(Type *t) {
   return t->class == SET_TYPE;
 }
 
+bool is_pointer(Type *t) {
+  return t->class == POINTER_TYPE;
+}
+
+bool is_nil(Type *t) {
+  return t == nil_type;
+}
+
 Symbol *new_symbol(char *name, Symbol_Class class) {
   Symbol *sym = new(Symbol);
   sym->class = class;
@@ -98,8 +106,11 @@ Symbol *new_parameter_symbol(char *name, Symbol_Class class) {
 }
 
 Symbol *new_label_symbol(char *name, Symbol *algo) {
+  static int label_count = 0;
+  
   Symbol *sym = new_symbol(name, LABEL_SYMBOL);
   sym->label.algorithm = algo;
+  sym->label.internal_label = ++label_count;
   return sym;
 }
 
@@ -134,12 +145,18 @@ Statement *new_statement(Statement_Class class, Symbol *label) {
 }
 
 Statement *new_assignment_statement(Expression *lval, Expression *rval,
-				    Symbol *label) {
+				    Symbol *label, bool type_check) {
   Statement *stmt = new_statement(ASSIGNMENT_STATEMENT, label);
-  if (!assignment_compatible(lval->type, rval->type))
-    error("incompatible types in assignment statement");
-  if (is_real(lval->type) && is_integer(rval->type))
-    rval = new_integer_to_real_expression(rval);
+
+  /* fake assignment statements are created by the I/O procedures
+     write, writeln, read, readln.  We don't need to do type
+     checking for these statements. */
+  if (type_check) {
+    if (!assignment_compatible(lval->type, rval->type))
+      error("incompatible types in assignment statement");
+    if (is_real(lval->type) && is_integer(rval->type))
+      rval = new_integer_to_real_expression(rval);
+  }
   stmt->assignment.lval = lval;
   stmt->assignment.rval = rval;
   return stmt;
@@ -834,9 +851,9 @@ Expression *new_trunc_function(Expression *e) {
 
 Expression *new_round_function(Expression *e) {
   if (is_integer(e->type))
-    return new_integer_to_real_expression(e); /* no need for round! */
+    return e;
   if (is_real(e->type))
-    return new_unary_expression(ROUND_EXPRESSION, real_type, e);
+    return new_unary_expression(ROUND_EXPRESSION, integer_type, e);
   error("illegal type for round function");
   return 0;
 }
@@ -957,5 +974,8 @@ bool assignment_compatible(Type *t1, Type *t2) {
     return assignment_compatible(t1->set.base, t2->set.base);
   if (is_string(t1) && is_string(t2))
     return compatible(t1, t2);
+  /* nil is assignment compatible with all pointer types */
+  if (is_pointer(t1) && is_nil(t2))
+    return true;
   return false;
 }

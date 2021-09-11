@@ -45,6 +45,8 @@ Statement *flush_procedure(Symbol *);
 Statement *new_flush_procedure(Expression *, Symbol *);
 Statement *close_procedure(Symbol *);
 Statement *new_close_procedure(Expression *, Symbol *);
+Statement *exit_procedure(Symbol *);
+Statement *new_exit_procedure(Expression *, Symbol *);
 Statement *goto_statement(Symbol *);
 Symbol *goto_label(void);
 Statement *new_goto_statement(char *, Symbol *);
@@ -160,7 +162,7 @@ Statement *assignment_statement(Symbol *label) {
   lval = variable_access();
   need(ASSIGN_TOKEN);
   rval = expression();
-  return new_assignment_statement(lval, rval, label);
+  return new_assignment_statement(lval, rval, label, true);
 }
 
 Statement *return_assignment_statement(Symbol *func, Symbol *label) {
@@ -170,7 +172,7 @@ Statement *return_assignment_statement(Symbol *func, Symbol *label) {
   lval = new_variable_expression(func->algorithm.return_value);
   need(ASSIGN_TOKEN);
   rval = expression();
-  return new_assignment_statement(lval, rval, label);
+  return new_assignment_statement(lval, rval, label, true);
 }   
 
 Statement *procedure_statement(Symbol *sym, Symbol *label) {
@@ -224,6 +226,8 @@ Statement *standard_procedure(Symbol *proc, Symbol *label) {
     return flush_procedure(label);
   case CLOSE_PROCEDURE:
     return close_procedure(label);
+  case EXIT_PROCEDURE:
+    return exit_procedure(label);
   }
   return 0;
 }
@@ -303,7 +307,7 @@ Statement *readln_procedure(Symbol *label) {
     lval = new_variable_expression(file);
     rval = new_variable_expression(lookup_symbol("input"));
     nstmts = new(Statement_Sequence);
-    nstmts->statement = new_assignment_statement(lval, rval, 0);
+    nstmts->statement = new_assignment_statement(lval, rval, 0, false);
     nstmts->next = stmts;
     stmts = nstmts;
   }
@@ -320,7 +324,7 @@ Statement_Sequence *read_parameter_list(Symbol *file, Statement_Sequence *coda) 
   if (is_file(e->type)) {
     lval = new_variable_expression(file);
     rval = e;
-    stmts->statement = new_assignment_statement(lval, rval, 0);
+    stmts->statement = new_assignment_statement(lval, rval, 0, false);
     if (match(COMMA_TOKEN))
       if (e->type == text_type)
 	stmts->next = read_parameters_text(file, coda);
@@ -332,7 +336,7 @@ Statement_Sequence *read_parameter_list(Symbol *file, Statement_Sequence *coda) 
   else {
     lval = new_variable_expression(file);
     rval = new_variable_expression(lookup_symbol("input"));
-    stmts->statement = new_assignment_statement(lval, rval, 0);
+    stmts->statement = new_assignment_statement(lval, rval, 0, false);
     stmts->next = read_parameters_text_more(file, e, coda);
   }
   return stmts;
@@ -407,7 +411,7 @@ Statement *writeln_procedure(Symbol *label) {
     lval = new_variable_expression(file);
     rval = new_variable_expression(lookup_symbol("output"));
     nstmts = new(Statement_Sequence);
-    nstmts->statement = new_assignment_statement(lval, rval, 0);
+    nstmts->statement = new_assignment_statement(lval, rval, 0, false);
     nstmts->next = stmts;
     stmts = nstmts;
   }
@@ -424,7 +428,7 @@ Statement_Sequence *write_parameter_list(Symbol *file, Statement_Sequence *coda)
   if (is_file(e->type)) {
     lval = new_variable_expression(file);
     rval = e;
-    stmts->statement = new_assignment_statement(lval, rval, 0);
+    stmts->statement = new_assignment_statement(lval, rval, 0, false);
     if (match(COMMA_TOKEN))
       if (e->type == text_type)
 	stmts->next = write_parameters_text(file, coda);
@@ -436,7 +440,7 @@ Statement_Sequence *write_parameter_list(Symbol *file, Statement_Sequence *coda)
   else {
     lval = new_variable_expression(file);
     rval = new_variable_expression(lookup_symbol("output"));
-    stmts->statement = new_assignment_statement(lval, rval, 0);
+    stmts->statement = new_assignment_statement(lval, rval, 0, false);
     stmts->next = write_parameters_text_more(file, e, coda);
   }
   return stmts;
@@ -645,6 +649,27 @@ Statement *new_close_procedure(Expression *e, Symbol *label) {
   return stmt;
 }
 
+Statement *exit_procedure(Symbol *label) {
+  Expression *e;
+
+  need(LPAREN_TOKEN);
+  e = expression();
+  need(RPAREN_TOKEN);
+  return new_exit_procedure(e, label);
+}
+
+Statement *new_exit_procedure(Expression *e, Symbol *label) {
+  Statement *stmt;
+
+  /* allow exit(true)/exit(false) in addition to exit(0) */
+  
+  if (e->type->class != ORDINAL_TYPE)
+    error("parameter to exit procedure in not ordinal");
+  stmt = new_statement(EXIT_STATEMENT, label);
+  stmt->parameter = e;
+  return stmt;
+}
+
 Statement *goto_statement(Symbol *stmt_label) {
   char *lab;
   next_token();
@@ -714,12 +739,11 @@ Statement *case_statement(Symbol *label) {
 
 Case_Element_List *case_element_list() {
   Case_Element_List *cases = new(Case_Element_List);
-  if (match(OTHERWISE_TOKEN))
+  if (match(ELSE_TOKEN))
     cases->constants = 0;
-  else {
+  else
     cases->constants = constant_list();
-    need(COLON_TOKEN);
-  }
+  need(COLON_TOKEN);
   cases->statement = statement();
   if (match(SEMICOLON_TOKEN)) {
     if (!check(END_TOKEN))

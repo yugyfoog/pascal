@@ -7,11 +7,9 @@
 #include "code.h"
 #include "gen.h"
 
-int trunc_flag = 0;
-int trunc_label1;
-int trunc_label2;
 int round_flag = 0;
-int round_label;
+int round_label1;
+int round_label2;
 
 typedef struct String_Node {
   char *str;
@@ -24,7 +22,7 @@ String_Node *strings = 0;
 void gen_enter(long, int);
 void gen_leave(void);
 void gen_return(long);
-void gen_statement_label(char *);
+void gen_statement_label(int);
 void gen_internal_label(int);
 void gen_procedure_call(char *);
 void gen_procedure_call_indirect(void);
@@ -100,8 +98,7 @@ void gen_exp(void);
 void gen_ln(void);
 void gen_trunc(void);
 void gen_round(void);
-void set_trunc_labels(void);
-void set_round_label(void);
+void set_round_labels(void);
 void gen_odd(void);
 void gen_inc(void);
 void gen_dec(void);
@@ -117,11 +114,11 @@ void gen_eoln(void);
 void gen_jump(int);
 void gen_jump_true(int);
 void gen_jump_false(int);
-void gen_jump_label(char *);
+void gen_jump_label(int);
 void gen_jump_index(int, long, int);
 void gen_jump_table(int *, long, int);
 void gen_case_error(void);
-void gen_interprocedural_jump(long, long, char *);
+void gen_interprocedural_jump(long, long, int);
 void gen_get(void);
 void gen_put(void);
 void gen_reset(void);
@@ -154,6 +151,7 @@ void gen_argc(void);
 void gen_argv(void);
 void gen_flush(void);
 void gen_close(void);
+void gen_exit(void);
 
 void add_string(char *, int);
 void output_string(char *);
@@ -166,7 +164,7 @@ void gen_code(Code *code) {
       case NOP_OP:
 	break;
       case LABEL_OP:
-	gen_statement_label(code->name);
+	gen_statement_label(code->ilabel);
 	break;
       case INTERNAL_LABEL:
 	gen_internal_label(code->ilabel);
@@ -448,7 +446,7 @@ void gen_code(Code *code) {
 	gen_jump_false(code->jump);
 	break;
       case JUMP_LABEL_OP:
-	gen_jump_label(code->name);
+	gen_jump_label(code->ilabel);
 	break;
       case JUMP_INDEX_OP:
 	gen_jump_index(code->jump_index.label, code->jump_index.size, code->jump_index.otherwise);
@@ -460,7 +458,7 @@ void gen_code(Code *code) {
 	gen_case_error();
 	break;
       case INTERPROCEDURAL_JUMP_OP:
-	gen_interprocedural_jump(code->inter.offset, code->inter.locals, code->inter.name);
+	gen_interprocedural_jump(code->inter.offset, code->inter.locals, code->inter.label);
 	break;
       case GET_OP:
 	gen_get();
@@ -558,24 +556,17 @@ void gen_code(Code *code) {
       case CLOSE_OP:
 	gen_close();
 	break;
+      case EXIT_OP:
+	gen_exit();
+	break;
       } 
       code = code->next;
     } while (code != start);
   }
 }
 
-void gen_comment(char *fmt, ...) {
-  va_list args;
-
-  fprintf(output, "# ");
-  va_start(args, fmt);
-  vfprintf(output, fmt, args);
-  va_end(args);
-  fprintf(output, "\n");
-}
-
-void gen_statement_label(char *label) {
-  fprintf(output, ".LG%s:\n", label);
+void gen_statement_label(int label) {
+  fprintf(output, ".LG%d:\n", label);
 }
 
 void gen_internal_label(int label) {
@@ -598,7 +589,7 @@ void gen_startup1() {
 void gen_startup2(char *name) {
   fprintf(output, "\tcall\t%s\n", name);
   fprintf(output, "\txorq\t%%rdi,%%rdi\n");
-  fprintf(output, "\tcall\tp_exit\n");
+  fprintf(output, "\tcall\texit\n");
 }
 
 void gen_push_program_parameter(char *name) {
@@ -607,11 +598,14 @@ void gen_push_program_parameter(char *name) {
 }
 
 void gen_enter(long size, int level) {
-  if (size >= 65536)
-    fatal_error("frame size too large");
   if (level >= 255)
     fatal_error("subroutines nested too deep");
-  fprintf(output, "\tenter\t$%ld,$%d\n", size, level+1);
+  if (size >= 65536) {
+    fprintf(output, "\tenter\t$0,$%d\n", level+1);
+    fprintf(output, "\tsub\t$%ld,%%rsp\n", size);
+  }
+  else 
+    fprintf(output, "\tenter\t$%ld,$%d\n", size, level+1);
 }
     
 void gen_leave() {
@@ -1389,51 +1383,32 @@ void gen_ln() {
 }
 
 void gen_trunc() {
-  int label;
-
-  set_trunc_labels();
-  label = new_label();
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tmovsd\t.L%d(%%rip),%%xmm1\n", trunc_label1);
-  fprintf(output, "\tandpd\t%%xmm0,%%xmm1\n");
-  fprintf(output, "\tcomisd\t.L%d(%%rip),%%xmm1\n", trunc_label2);
-  fprintf(output, "\tjae\t.L%d\n", label);
-  fprintf(output, "\tcvttsd2siq\t%%xmm0,%%rax\n");
-  fprintf(output, "\tcvtsi2sdq\t%%rax,%%xmm0\n");
-  fprintf(output, ".L%d:\tmovsd\t%%xmm0,(%%rsp)\n", label);
+  fprintf(output, "\tvcvttsd2si\t%%xmm0,%%rax\n");
+  fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
 }
 
 void gen_round() {
-  int label;
+  int label1, label2;
 
-  set_trunc_labels();
-  set_round_label();
-  label = new_label();
+  label1 = new_label();
+  label2 = new_label();
+  set_round_labels();
   fprintf(output, "\tmovsd\t(%%rsp),%%xmm0\n");
-  fprintf(output, "\tmovsd\t.L%d(%%rip),%%xmm1\n", trunc_label1);
-  fprintf(output, "\tvandpd\t%%xmm0,%%xmm1,%%xmm2\n");
-  fprintf(output, "\tcomisd\t.L%d(%%rip),%%xmm2\n", trunc_label2);
-  fprintf(output, "\tjae\t.L%d\n", label);
-  fprintf(output, "\tvandnpd\t%%xmm1,%%xmm0,%%xmm3\n");
-  fprintf(output, "\taddsd\t.L%d(%%rip),%%xmm2\n", round_label);
-  fprintf(output, "\tcvttsd2siq\t%%xmm2,%%rax\n");
-  fprintf(output, "\tcvtsi2sdq\t%%rax,%%xmm0\n");
-  fprintf(output, "\torpd\t%%xmm3,%%xmm0\n");
-  fprintf(output, ".L%d:\tmovsd\t%%xmm0,(%%rsp)\n", label);
-}
+  fprintf(output, "\tcomisd\t.L%d(%%rip),%%xmm0\n", round_label1); /* zero */
+  fprintf(output, "\tjb\t.L%d\n", label1);
+  fprintf(output, "\taddsd\t.L%d(%%rip),%%xmm0\n", round_label2);  /* half */
+  fprintf(output, "\tjmp\t.L%d\n", label2);
+  fprintf(output, ".L%d:\tsubsd\t.L%d(%%rip),%%xmm0\n", label1, round_label2);
+  fprintf(output, ".L%d:\tcvttsd2si\t%%xmm0,%%rax\n", label2);
+  fprintf(output, "\tmov\t%%rax,(%%rsp)\n");
+}  
 
-void set_trunc_labels() {
-  if (trunc_flag == 0) {
-    trunc_flag++;
-    trunc_label1 = new_label();
-    trunc_label2 = new_label();
-  }
-}
-
-void set_round_label() {
+void set_round_labels() {
   if (round_flag == 0) {
     round_flag++;
-    round_label = new_label();
+    round_label1 = new_label();
+    round_label2 = new_label();
   }
 }
 
@@ -1574,8 +1549,8 @@ void gen_jump_false(int label) {
   fprintf(output, "\tjz\t.L%d\n", label);
 }
 
-void gen_jump_label(char *label) {
-  fprintf(output, "\tjmp\t.LG%s\n", label);
+void gen_jump_label(int label) {
+  fprintf(output, "\tjmp\t.LG%d\n", label);
 }
 
 void gen_jump_index(int label, long size, int other) {
@@ -1605,10 +1580,10 @@ void gen_case_error() {
   fprintf(output, "\tjmp\tcase_error\n");
 }
 
-void gen_interprocedural_jump(long level, long locals, char *label) {
+void gen_interprocedural_jump(long level, long locals, int label) {
   fprintf(output, "\tmov\t%ld(%%rbp),%%rbp\n", -8*(level+1));
   fprintf(output, "\tlea\t%ld(%%rbp),%%rsp\n", -8*(level+2) - locals);
-  fprintf(output, "\tjmp\t.LG%s\n", label);
+  fprintf(output, "\tjmp\t.LG%d\n", label);
 }
 
 void gen_argc() {
@@ -1628,6 +1603,10 @@ void gen_close() {
   fprintf(output, "\tcall\tclose_x\n");
 }
 
+void gen_exit() {
+  fprintf(output, "\tcall\texit_x\n");
+}
+
 void add_string(char *string, int label) {
   String_Node *ptr = new(String_Node);
   ptr->str = string;
@@ -1637,16 +1616,11 @@ void add_string(char *string, int label) {
 }
 
 void gen_dump_bits() {
-  if (trunc_flag == 1) {
-    trunc_flag++;
-    fprintf(output, "\t.align\t8\n");
-    fprintf(output, ".L%d:\t.quad\t%ld\n", trunc_label1, 0x7fffffffffffffff);
-    fprintf(output, ".L%d:\t.quad\t%ld\n", trunc_label2, 0x4330000000000000);
-  }
   if (round_flag == 1) {
     round_flag++;
     fprintf(output, "\t.align\t8\n");
-    fprintf(output, ".L%d:\t.quad\t%ld\n", round_label, 0x7fe0000000000000);
+    fprintf(output, ".L%d:\t.quad\t%ld\n", round_label1, 0L);
+    fprintf(output, ".L%d:\t.quad\t%ld\n", round_label2, 0x3fe0000000000000);
   }
 }
 

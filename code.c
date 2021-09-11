@@ -71,6 +71,7 @@ Code *code_unpack(Expression *, Expression *, Expression *);
 Code *code_argv(Expression *, Expression *);
 Code *code_flush(Expression *);
 Code *code_close(Expression *);
+Code *code_exit(Expression *);
 Code *code_load_value(Expression *);
 Code *code_load_address(Expression *);
 Code *code_load_variable(Symbol *);
@@ -171,7 +172,7 @@ Code *sequence7(Code *, Code *, Code *, Code *, Code *, Code *, Code *);
 Code *sequence9(Code *, Code *, Code *, Code *, Code *,
 		Code *, Code *, Code *, Code *);
 Code *new_code(Operation);
-Code *new_statement_label(char *);
+Code *new_statement_label(int);
 Code *new_internal_label(int);
 Code *new_enter_op(long, int);
 Code *new_leave_op(void);
@@ -268,11 +269,11 @@ Code *new_in_op(void);
 Code *new_jump_op(int);
 Code *new_jump_true_op(int);
 Code *new_jump_false_op(int);
-Code *new_jump_label_op(char *);
+Code *new_jump_label_op(int);
 Code *new_jump_index(int, long, int);
 Code *new_jump_table(int *, long, int);
 Code *new_case_error_op(void);
-Code *new_interprocedural_jump_op(long, long, char *);
+Code *new_interprocedural_jump_op(long, long, int);
 Code *new_get_op(void);
 Code *new_put_op(void);
 Code *new_reset_op(void);
@@ -303,6 +304,7 @@ Code *new_dispose_op(void);
 Code *new_argv_op(void);
 Code *new_flush_op(void);
 Code *new_close_op(void);
+Code *new_exit_op(void);
 
 void code_program(Symbol *prog) {
   Code *code;
@@ -509,13 +511,15 @@ Code *code_statement(Statement *stmt) {
     return code_flush(stmt->parameter);
   case CLOSE_STATEMENT:
     return code_close(stmt->parameter);
+  case EXIT_STATEMENT:
+    return code_exit(stmt->parameter);
   }
   internal_error();
   return 0;
 }
 
 Code *code_labeled_statement(Statement *stmt) {
-  Code *code = new_statement_label(stmt->label->name);
+  Code *code = new_statement_label(stmt->label->label.internal_label);
   stmt->label = 0;
   return sequence2(code, code_statement(stmt));
 }
@@ -644,13 +648,13 @@ Code *code_goto_statement(Symbol *label) {
 }
 
 Code *code_local_goto(Symbol *label) {
-  return new_jump_label_op(label->name);
+  return new_jump_label_op(label->label.internal_label);
 }
 
 Code *code_interprocedural_goto(Symbol *label) {
   return new_interprocedural_jump_op(label->label.algorithm->block_level,
 				     label->label.algorithm->algorithm.local_size,
-				     label->name);
+				     label->label.internal_label);
 }
 
 Code *code_while_statement(Expression *test, Statement *stmt) {
@@ -1139,6 +1143,11 @@ Code *code_flush(Expression *e) {
 Code *code_close(Expression *e) {
   return sequence2(code_load_value(e),
 		   new_close_op());
+}
+
+Code *code_exit(Expression *e) {
+  return sequence2(code_load_value(e),
+		   new_exit_op());
 }
 
 Code *code_load_value(Expression *e) {
@@ -1924,9 +1933,9 @@ Code *new_code(Operation op) {
   return code;
 }
 
-Code *new_statement_label(char *label) {
+Code *new_statement_label(int label) {
   Code *code = new_code(LABEL_OP);
-  code->name = label;
+  code->ilabel = label;
   return code;
 }
 
@@ -2368,9 +2377,9 @@ Code *new_jump_false_op(int label) {
   return code;
 }
 
-Code *new_jump_label_op(char *lab) {
+Code *new_jump_label_op(int lab) {
   Code *code = new_code(JUMP_LABEL_OP);
-  code->name = lab;
+  code->ilabel = lab;
   return code;
 }
 
@@ -2394,11 +2403,11 @@ Code *new_case_error_op() {
   return new_code(CASE_ERROR_OP);
 }
 
-Code *new_interprocedural_jump_op(long offset, long locals, char *name) {
+Code *new_interprocedural_jump_op(long offset, long locals, int label) {
   Code *code = new_code(INTERPROCEDURAL_JUMP_OP);
   code->inter.offset = offset;
   code->inter.locals = locals;
-  code->inter.name = name;
+  code->inter.label = label;
   return code;
 }
 
@@ -2520,6 +2529,10 @@ Code *new_flush_op() {
 
 Code *new_close_op() {
   return new_code(CLOSE_OP);
+}
+
+Code *new_exit_op() {
+  return new_code(EXIT_OP);
 }
 
 /* link two code lists */

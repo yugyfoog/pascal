@@ -15,7 +15,7 @@ typedef enum {
   AND_TOKEN, ARRAY_TOKEN, BEGIN_TOKEN, CASE_TOKEN, CONST_TOKEN, DIV_TOKEN,
   DO_TOKEN, DOWNTO_TOKEN, ELSE_TOKEN, END_TOKEN, FILE_TOKEN, FOR_TOKEN,
   FUNCTION_TOKEN, GOTO_TOKEN, IF_TOKEN, IN_TOKEN, LABEL_TOKEN, MOD_TOKEN,
-  NIL_TOKEN, NOT_TOKEN, OF_TOKEN, OR_TOKEN, OTHERWISE_TOKEN, PACKED_TOKEN,
+  NIL_TOKEN, NOT_TOKEN, OF_TOKEN, OR_TOKEN, PACKED_TOKEN,
   PROCEDURE_TOKEN, PROGRAM_TOKEN, RECORD_TOKEN, REPEAT_TOKEN, SET_TOKEN,
   THEN_TOKEN, TO_TOKEN, TYPE_TOKEN, UNTIL_TOKEN, VAR_TOKEN, WHILE_TOKEN,
   WITH_TOKEN,
@@ -105,6 +105,7 @@ typedef enum {
   PAGE_PROCEDURE, NEW_PROCEDURE, DISPOSE_PROCEDURE,
   PACK_PROCEDURE, UNPACK_PROCEDURE,
   ARGV_PROCEDURE, FLUSH_PROCEDURE, CLOSE_PROCEDURE,
+  EXIT_PROCEDURE
 } Standard_Procedure;
 
 typedef enum {
@@ -137,6 +138,7 @@ typedef struct Algorithm_Symbol {
 
 typedef struct Label_Symbol {
   struct Symbol *algorithm;    /* this is the program/procedure/function that the label is defined in */
+  int internal_label;
 } Label_Symbol;
 
 typedef enum {
@@ -335,7 +337,7 @@ typedef enum {
   NEW_STATEMENT, DISPOSE_STATEMENT,
   PAGE_STATEMENT,
   PACK_STATEMENT, UNPACK_STATEMENT,
-  ARGV_STATEMENT, FLUSH_STATEMENT, CLOSE_STATEMENT,
+  ARGV_STATEMENT, FLUSH_STATEMENT, CLOSE_STATEMENT, EXIT_STATEMENT
 } Statement_Class;
 
 typedef struct Statement {
@@ -498,7 +500,7 @@ Type *new_subrange_type(Constant *, Constant *);
 Symbol *find_with_variable(Type *);
 
 Statement *new_statement(Statement_Class, Symbol *);
-Statement *new_assignment_statement(Expression *, Expression *, Symbol *);
+Statement *new_assignment_statement(Expression *, Expression *, Symbol *, bool);
 Statement *new_procedure_call(Symbol *, Expression_List *, Symbol *);
 Statement *new_reset_statement(Expression *, Expression *, Symbol *);
 Statement *new_rewrite_statement(Expression *, Expression *, Symbol *);
