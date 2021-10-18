@@ -841,17 +841,13 @@ Expression *new_ln_function(Expression *e) {
 }
 
 Expression *new_trunc_function(Expression *e) {
-  if (is_integer(e->type))
-    return new_integer_to_real_expression(e); /* no need for trunc! */
   if (is_real(e->type))
-    return new_unary_expression(TRUNC_EXPRESSION, real_type, e);
+    return new_unary_expression(TRUNC_EXPRESSION, integer_type, e);
   error("illegal type for trunc function");
   return 0;
 }
 
 Expression *new_round_function(Expression *e) {
-  if (is_integer(e->type))
-    return e;
   if (is_real(e->type))
     return new_unary_expression(ROUND_EXPRESSION, integer_type, e);
   error("illegal type for round function");
