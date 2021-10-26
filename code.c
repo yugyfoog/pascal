@@ -317,7 +317,7 @@ void code_program(Symbol *prog) {
 		   code_statement(prog->algorithm.statement),
 		   code_program_epilogue(prog));
 
-  gen_text_label(prog->name);
+  gen_text_label(prog->algorithm.gname);
   gen_code(code);
 
   code_algorithms(prog->algorithm.algorithms);
@@ -330,7 +330,7 @@ void code_program(Symbol *prog) {
 void code_startup(Symbol *prog) {
   gen_startup1();
   code_program_parameters(prog->algorithm.parameters);
-  gen_startup2(prog->name);
+  gen_startup2(prog->algorithm.gname);
 }
 
 void code_program_parameters(Symbol_List *params) {
@@ -421,7 +421,7 @@ void code_procedure(Symbol *proc) {
   code = sequence3(code_procedure_prologue(proc),
 		   code_statement(proc->algorithm.statement),
 		   code_procedure_epilogue(proc));
-  gen_text_label(proc->name);
+  gen_text_label(proc->algorithm.gname);
   gen_code(code);
 
   code_algorithms(proc->algorithm.algorithms);    
@@ -435,7 +435,7 @@ void code_function(Symbol *func) {
   code = sequence3(code_function_prologue(func),
 		  code_statement(func->algorithm.statement),
 		  code_function_epilogue(func));
-  gen_text_label(func->name);
+  gen_text_label(func->algorithm.gname);
   gen_code(code);
 
   code_algorithms(func->algorithm.algorithms); 
@@ -1845,7 +1845,7 @@ Code *code_function_call(Symbol *sym, Expression_List *params) {
   Code *code = code_parameters(sym->algorithm.parameters, params);
   if (sym->class == FUNCTION_SYMBOL)
     return sequence2(code,
-		     new_function_call_op(sym->name));
+		     new_function_call_op(sym->algorithm.gname));
   if (sym->class == FUNCTION_PARAMETER)
     return sequence4(code,
 		     code_load_variable_address(sym),
@@ -1859,7 +1859,7 @@ Code *code_procedure_call(Symbol *sym, Expression_List *params) {
   Code *code = code_parameters(sym->algorithm.parameters, params);
   if (sym->class == PROCEDURE_SYMBOL)
     return sequence2(code,
-		     new_procedure_call_op(sym->name));
+		     new_procedure_call_op(sym->algorithm.gname));
   if (sym->class == PROCEDURE_PARAMETER)
     return sequence4(code,
 		     code_load_variable_address(sym),
@@ -1908,7 +1908,7 @@ Code *code_variable_parameter(Expression *e) {
 
 Code *code_procedural_parameter(Symbol *proc) {
   if (proc->class == PROCEDURE_SYMBOL)
-    return new_load_algorithm_op(proc->name);
+    return new_load_algorithm_op(proc->algorithm.gname);
   if (proc->class == FUNCTION_PARAMETER)
     return sequence2(code_load_variable_address(proc),
 		     new_fetch_op());
@@ -1918,7 +1918,7 @@ Code *code_procedural_parameter(Symbol *proc) {
 
 Code *code_functional_parameter(Symbol *func) {
   if (func->class == FUNCTION_SYMBOL)
-    return new_load_algorithm_op(func->name);
+    return new_load_algorithm_op(func->algorithm.gname);
   if (func->class == FUNCTION_PARAMETER)
     return sequence2(code_load_variable_address(func),
 		     new_fetch_op());

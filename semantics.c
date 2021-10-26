@@ -966,8 +966,11 @@ bool assignment_compatible(Type *t1, Type *t2) {
     return true;
   if (t1->class == ORDINAL_TYPE && t2->class == ORDINAL_TYPE)
     return t1->ordinal.base == t2->ordinal.base;
-  if (is_set(t1) && is_set(t2))
+  if (is_set(t1) && is_set(t2)) {
+    if (t2->set.base == 0) /* empty set type */
+      return true;
     return assignment_compatible(t1->set.base, t2->set.base);
+  }
   if (is_string(t1) && is_string(t2))
     return compatible(t1, t2);
   /* nil is assignment compatible with all pointer types */

@@ -126,6 +126,7 @@ typedef struct Variable_Symbol {
 typedef enum {UNKNOWN, DEFINED, EXTERNAL, FORWARD} Directive;
 
 typedef struct Algorithm_Symbol {
+  char *gname;
   int local_size;
   int parameter_size;
   Directive declared;

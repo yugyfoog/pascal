@@ -127,8 +127,17 @@ Symbol *new_function_symbol(char *name, Symbol_List *parameters, Type *type) {
   return new_algorithm_symbol(name, FUNCTION_SYMBOL, parameters, type);
 }
 
+char *unique_name() {
+  static int x = 0;
+  
+  char buffer[32];
+  sprintf(buffer, "S%d", x++);
+  return strdup(buffer);
+}
+
 Symbol *new_algorithm_symbol(char *name, Symbol_Class class, Symbol_List *parameters, Type *type) {
   Symbol *sym = new_symbol(name, class);
+  sym->algorithm.gname = unique_name();
   sym->algorithm.local_size = 0;
   sym->algorithm.parameter_size = 0;
   sym->algorithm.declared = UNKNOWN;

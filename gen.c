@@ -1448,12 +1448,12 @@ void gen_to_set_range() {
   l2 = new_label();
   l3 = new_label();
   l4 = new_label();
-  fprintf(output, "\tpop\t%%rdx\n");                 /* %rdx =  '9'  0x39 */
-  fprintf(output, "\tpop\t%%rdi\n");                 /* %rdi = '0'  0x30 */
-  fprintf(output, "\tcmp\t%%rdx,%%rdi\n");           /* 0x30 ?? 0x39 */
-  fprintf(output, "\tjle\t.L%d\n", l0);
-  gen_empty_set();
-  fprintf(output, "\tjmp\t.L%d\n", l4);
+  fprintf(output, "\tpop\t%%rdx\n");                 /* %rdx = high value */
+  fprintf(output, "\tpop\t%%rdi\n");                 /* %rdi = low value */
+  fprintf(output, "\tcmp\t%%rdx,%%rdi\n");           /* low <?> high */
+  fprintf(output, "\tjle\t.L%d\n", l0);              /* jump if low <= high */
+  gen_empty_set();                                   /* high < low, therefor set is empty */
+  fprintf(output, "\tjmp\t.L%d\n", l4);              /* jump to done */
   fprintf(output, ".L%d:\txor\t%%r8,%%r8\n", l0);    /* %r8 = 0 */
   fprintf(output, "\tmov\t%%rdi,%%rsi\n");           /* %rsi = 0x30 */
   fprintf(output, "\tshr\t$6,%%rsi\n");              /* %rsi = 0x30/64 = 0 */
