@@ -257,6 +257,12 @@ symbol level -- level of symbol for adding and removing   (part of Symbol_List)
                 symbols from the symbol table
 */
 
+Symbol *lookup_symbol_check(char *name) {
+  Symbol *sym = lookup_symbol(name);
+  if (sym == 0)
+    error("%s not defined", name);
+  return sym;
+}
 
 Symbol *lookup_symbol(char *name) {
   Symbol_List *syms;
@@ -267,6 +273,13 @@ Symbol *lookup_symbol(char *name) {
       return syms->symbol;
   }
   return 0;
+}
+
+Symbol *lookup_symbol_local_check(char *name) {
+  Symbol *sym = lookup_symbol_local(name);
+  if (sym == 0)
+    error("%s not defined", name);
+  return sym;
 }
 
 Symbol *lookup_symbol_local(char *name) {

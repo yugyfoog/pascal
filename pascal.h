@@ -416,7 +416,9 @@ void insert_variable_symbols(Identifier_List *, Type *);
 void insert_record_fields(Type *);
 
 Symbol *lookup_symbol(char *);
+Symbol *lookup_symbol_check(char *);
 Symbol *lookup_symbol_local(char *);
+Symbol *lookup_symbol_local_check(char *);
 
 void install_variable_symbols(Identifier_List *, Type *);
 

@@ -91,7 +91,7 @@ Symbol *program_parameter() {
   
 void block(Symbol *sym) {
   int save_variable_offset;
-  
+
   variable_offset = 0;
   push_symbol_table();
   insert_symbols(sym->algorithm.parameters);

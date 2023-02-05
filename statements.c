@@ -103,7 +103,7 @@ Statement *statement() {
     if (sym) {
       switch (sym->class) {
       case FUNCTION_SYMBOL:
-	return return_assignment_statement(sym, label);
+        return return_assignment_statement(sym, label);
       case VARIABLE_SYMBOL:
       case VALUE_PARAMETER:
       case VARIABLE_PARAMETER:
@@ -421,10 +421,12 @@ Statement *writeln_procedure(Symbol *label) {
 Statement_Sequence *write_parameter_list(Symbol *file, Statement_Sequence *coda) {
   Statement_Sequence *stmts;
   Expression *e, *lval, *rval;
-
+  Symbol *sym;
+  
   stmts = new(Statement_Sequence);
   
   e = expression();
+
   if (is_file(e->type)) {
     lval = new_variable_expression(file);
     rval = e;
@@ -438,10 +440,15 @@ Statement_Sequence *write_parameter_list(Symbol *file, Statement_Sequence *coda)
       stmts->next = coda;
   }
   else {
-    lval = new_variable_expression(file);
-    rval = new_variable_expression(lookup_symbol("output"));
-    stmts->statement = new_assignment_statement(lval, rval, 0, false);
-    stmts->next = write_parameters_text_more(file, e, coda);
+    sym = lookup_symbol("output");
+    if (sym == 0)
+      error("output undefined");
+    else {
+      lval = new_variable_expression(file);
+      rval = new_variable_expression(lookup_symbol("output"));
+      stmts->statement = new_assignment_statement(lval, rval, 0, false);
+      stmts->next = write_parameters_text_more(file, e, coda);
+    }
   }
   return stmts;
 }
@@ -688,7 +695,7 @@ Statement *new_goto_statement(char *goto_label, Symbol *statement_label) {
 
 Statement *compound_statement(Symbol *label) {
   Statement_Sequence *stmts;
-  
+
   need(BEGIN_TOKEN);
   stmts = statement_sequence();
   need(END_TOKEN);
@@ -816,7 +823,7 @@ Statement *for_statement(Symbol *label) {
 
   next_token();
   id = identifier();
-  control_variable = lookup_symbol_local(id);
+  control_variable = lookup_symbol_local_check(id);
   need(ASSIGN_TOKEN);
   initial_value = expression();
   if (match(TO_TOKEN))

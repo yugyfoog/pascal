@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   program = parse();
   
   fclose(input);
-  
+
   if (error_count == 0) {
     output = fopen(output_name, "w");
     if (output == 0)
